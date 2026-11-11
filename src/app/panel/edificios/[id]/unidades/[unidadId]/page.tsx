@@ -51,7 +51,8 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+       <div>
         <Link href={`/panel/edificios/${id}`} className="text-sm text-slate-500 hover:underline">
           ← {edificio.nombre}
         </Link>
@@ -59,6 +60,13 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
         <p className="text-sm text-slate-500">
           {propietario ? `Propietario: ${propietario.nombres}` : "Sin propietario asignado"}
         </p>
+       </div>
+        <Link
+          href={`/panel/edificios/${id}`}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+        >
+          Cancelar
+        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -71,8 +79,9 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
                   ({otrasUnidades!.map((u) => u.codigo).join(", ")}). Los cambios se aplican en todas.
                 </p>
               )}
-              <FormAccion action={actualizarPropietario} boton="Guardar cambios" limpiar={false} className="grid gap-3 sm:grid-cols-2">
+              <FormAccion action={actualizarPropietario} boton="Guardar" limpiar={false} className="grid gap-3 sm:grid-cols-2">
                 <input type="hidden" name="persona_id" value={propietario.id} />
+                <input type="hidden" name="edificio_id" value={id} />
                 <Campo name="nombres" label="Nombre completo" defaultValue={propietario.nombres} required className="sm:col-span-2" />
                 <Campo name="documento" label="DNI / RUC" defaultValue={propietario.documento ?? ""} />
                 <Campo name="telefono" label="Celular" defaultValue={propietario.telefono ?? ""} />
@@ -85,8 +94,9 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
         </Tarjeta>
 
         <Tarjeta titulo="Datos de la unidad">
-          <FormAccion action={actualizarUnidad} boton="Guardar cambios" limpiar={false} className="grid gap-3 sm:grid-cols-2">
+          <FormAccion action={actualizarUnidad} boton="Guardar" limpiar={false} className="grid gap-3 sm:grid-cols-2">
             <input type="hidden" name="unidad_id" value={unidad.id} />
+            <input type="hidden" name="edificio_id" value={id} />
             <Campo name="codigo" label="Código" defaultValue={unidad.codigo} required />
             <Selector name="tipo" label="Tipo" opciones={TIPOS} defaultValue={unidad.tipo} />
             <Campo name="area_m2" label="Área m²" inputMode="decimal" defaultValue={unidad.area_m2 ?? ""} />
@@ -102,7 +112,7 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
         <p className="mb-4 text-sm text-slate-600">
           Úsalo cuando la unidad se vende o pasa a otra persona. Las cuotas y pagos anteriores quedan en el historial de la unidad.
         </p>
-        <CambiarPropietario unidadId={unidad.id} actualId={propietario?.id ?? null} personas={personas ?? []} />
+        <CambiarPropietario edificioId={id} unidadId={unidad.id} actualId={propietario?.id ?? null} personas={personas ?? []} />
       </Tarjeta>
     </div>
   );

@@ -9,6 +9,11 @@ import { parsearCsv, aNumero } from "@/lib/csv";
 export type Estado = { error?: string; ok?: string };
 
 const txt = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
+// Vuelve a la lista de unidades del edificio mostrando un mensaje
+function volverALista(edificioId: string, mensaje: string): never {
+  redirect(`/panel/edificios/${edificioId}?ok=${encodeURIComponent(mensaje)}`);
+}
+
 const TIPOS = ["departamento", "estacionamiento", "deposito", "local"] as const;
 
 async function staff() {
@@ -86,8 +91,7 @@ export async function crearUnidad(_: Estado, fd: FormData): Promise<Estado> {
   if (error) {
     return { error: error.code === "23505" ? `Ya existe la unidad ${codigo}.` : error.message };
   }
-  refresh();
-  return { ok: `Unidad ${codigo} agregada.` };
+  volverALista(edificio_id, `Unidad ${codigo} agregada.`);
 }
 
 export async function eliminarUnidad(fd: FormData) {
@@ -171,11 +175,11 @@ export async function importarUnidades(_: Estado, fd: FormData): Promise<Estado>
     else importadas++;
   }
 
-  refresh();
   if (errores.length) {
+    refresh();
     return { error: `Se importaron ${importadas} unidades. Errores:\n${errores.slice(0, 10).join("\n")}` };
   }
-  return { ok: `Se importaron ${importadas} unidades.` };
+  volverALista(edificio_id, `Se importaron ${importadas} unidades.`);
 }
 
 // ---------- Presupuesto ----------
@@ -299,8 +303,7 @@ export async function actualizarUnidad(_: Estado, fd: FormData): Promise<Estado>
     })
     .eq("id", txt(fd, "unidad_id"));
   if (error) return { error: error.code === "23505" ? `Ya existe otra unidad con el código ${codigo}.` : error.message };
-  refresh();
-  return { ok: "Datos de la unidad actualizados." };
+  volverALista(txt(fd, "edificio_id"), `Unidad ${codigo} actualizada.`);
 }
 
 export async function actualizarPropietario(_: Estado, fd: FormData): Promise<Estado> {
@@ -318,8 +321,7 @@ export async function actualizarPropietario(_: Estado, fd: FormData): Promise<Es
     })
     .eq("id", txt(fd, "persona_id"));
   if (error) return { error: error.message };
-  refresh();
-  return { ok: "Datos del propietario actualizados." };
+  volverALista(txt(fd, "edificio_id"), `Datos de ${nombres} actualizados.`);
 }
 
 // Cambio de propietario (venta, herencia…): elegir uno existente o registrar uno nuevo
@@ -350,6 +352,5 @@ export async function cambiarPropietario(_: Estado, fd: FormData): Promise<Estad
 
   const { error } = await supabase.from("unidades").update({ propietario_id }).eq("id", txt(fd, "unidad_id"));
   if (error) return { error: error.message };
-  refresh();
-  return { ok: propietario_id ? "Propietario asignado." : "La unidad quedó sin propietario." };
+  volverALista(txt(fd, "edificio_id"), propietario_id ? "Propietario cambiado." : "La unidad quedó sin propietario.");
 }

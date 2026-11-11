@@ -5,10 +5,12 @@ import { FormAccion, Campo, Selector } from "@/components/form-accion";
 import { cambiarPropietario } from "@/app/panel/actions";
 
 export function CambiarPropietario({
+  edificioId,
   unidadId,
   actualId,
   personas,
 }: {
+  edificioId: string;
   unidadId: string;
   actualId: string | null;
   personas: { id: string; nombres: string; documento: string | null }[];
@@ -23,8 +25,9 @@ export function CambiarPropietario({
   ];
 
   return (
-    <FormAccion action={cambiarPropietario} boton="Cambiar propietario" className="grid gap-3 sm:grid-cols-2">
+    <FormAccion action={cambiarPropietario} boton="Guardar" limpiar={false} className="grid gap-3 sm:grid-cols-2">
       <input type="hidden" name="unidad_id" value={unidadId} />
+      <input type="hidden" name="edificio_id" value={edificioId} />
       <div className="sm:col-span-2">
         <Selector
           name="persona_id"
