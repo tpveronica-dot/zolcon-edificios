@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import Link from "next/link";
+import { Encabezado, Indicador } from "./encabezado";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPerfil, esStaff } from "@/lib/auth";
@@ -43,15 +43,7 @@ async function Contenido({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link href="/panel" className="text-sm text-slate-500 hover:underline">
-          ← Edificios
-        </Link>
-        <h1 className="mt-1 text-2xl font-semibold text-slate-900">{edificio.nombre}</h1>
-        <p className="text-sm text-slate-500">
-          {[edificio.direccion, edificio.distrito].filter(Boolean).join(", ")} · Vence el día {edificio.dia_vencimiento}
-        </p>
-      </div>
+      <Encabezado id={id} edificio={edificio} activa="unidades" />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Indicador titulo="Unidades" valor={String(lista.length)} />
@@ -59,7 +51,8 @@ async function Contenido({ params }: { params: Promise<{ id: string }> }) {
         <Indicador
           titulo="Suma de % de participación"
           valor={`${sumaPct.toFixed(2)} %`}
-          alerta={lista.length > 0 && !cuadra ? "Debe sumar 100 % para calcular bien las cuotas" : undefined}
+          tono={lista.length > 0 && !cuadra ? "alerta" : "normal"}
+          nota={lista.length > 0 && !cuadra ? "Debe sumar 100 % para calcular bien las cuotas" : undefined}
         />
       </div>
 
@@ -155,16 +148,6 @@ async function Contenido({ params }: { params: Promise<{ id: string }> }) {
           </div>
         )}
       </Tarjeta>
-    </div>
-  );
-}
-
-function Indicador({ titulo, valor, alerta }: { titulo: string; valor: string; alerta?: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-xs font-medium uppercase text-slate-500">{titulo}</p>
-      <p className={`mt-1 text-2xl font-semibold tabular-nums ${alerta ? "text-amber-600" : "text-slate-900"}`}>{valor}</p>
-      {alerta && <p className="mt-1 text-xs text-amber-700">{alerta}</p>}
     </div>
   );
 }

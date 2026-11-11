@@ -1,0 +1,56 @@
+import Link from "next/link";
+
+type Pestana = "unidades" | "presupuesto" | "cuotas";
+
+export function Encabezado({
+  id,
+  edificio,
+  activa,
+}: {
+  id: string;
+  edificio: { nombre: string; direccion: string | null; distrito: string | null; dia_vencimiento: number };
+  activa: Pestana;
+}) {
+  const pestanas: [Pestana, string, string][] = [
+    ["unidades", "Unidades", `/panel/edificios/${id}`],
+    ["presupuesto", "Presupuesto", `/panel/edificios/${id}/presupuesto`],
+    ["cuotas", "Cuotas y pagos", `/panel/edificios/${id}/cuotas`],
+  ];
+  return (
+    <div>
+      <Link href="/panel" className="text-sm text-slate-500 hover:underline">
+        ← Edificios
+      </Link>
+      <h1 className="mt-1 text-2xl font-semibold text-slate-900">{edificio.nombre}</h1>
+      <p className="text-sm text-slate-500">
+        {[edificio.direccion, edificio.distrito].filter(Boolean).join(", ")} · Vence el día {edificio.dia_vencimiento}
+      </p>
+      <nav className="mt-5 flex gap-1 border-b border-slate-200">
+        {pestanas.map(([clave, texto, href]) => (
+          <Link
+            key={clave}
+            href={href}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
+              activa === clave
+                ? "border-slate-900 text-slate-900"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            {texto}
+          </Link>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+export function Indicador({ titulo, valor, nota, tono = "normal" }: { titulo: string; valor: string; nota?: string; tono?: "normal" | "alerta" | "bien" | "mal" }) {
+  const color = { normal: "text-slate-900", alerta: "text-amber-600", bien: "text-emerald-700", mal: "text-red-600" }[tono];
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-xs font-medium uppercase text-slate-500">{titulo}</p>
+      <p className={`mt-1 text-2xl font-semibold tabular-nums ${color}`}>{valor}</p>
+      {nota && <p className={`mt-1 text-xs ${tono === "alerta" ? "text-amber-700" : "text-slate-500"}`}>{nota}</p>}
+    </div>
+  );
+}

@@ -177,3 +177,107 @@ export async function importarUnidades(_: Estado, fd: FormData): Promise<Estado>
   }
   return { ok: `Se importaron ${importadas} unidades.` };
 }
+
+// ---------- Presupuesto ----------
+export async function crearPresupuesto(fd: FormData) {
+  const perfil = await staff();
+  const supabase = await createClient();
+  await supabase.from("presupuestos").insert({
+    empresa_id: perfil.empresa_id,
+    edificio_id: txt(fd, "edificio_id"),
+    anio: Number(txt(fd, "anio")),
+  });
+  refresh();
+}
+
+export async function agregarPartida(_: Estado, fd: FormData): Promise<Estado> {
+  const perfil = await staff();
+  const nombre = txt(fd, "nombre");
+  const monto = aNumero(txt(fd, "monto_mensual"));
+  if (!nombre) return { error: "Escribe el nombre de la partida." };
+  if (monto == null || monto < 0) return { error: "Escribe un monto mensual válido." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("partidas").insert({
+    empresa_id: perfil.empresa_id,
+    presupuesto_id: txt(fd, "presupuesto_id"),
+    nombre,
+    monto_mensual: monto,
+    es_fondo_reserva: fd.get("es_fondo_reserva") === "on",
+  });
+  if (error) return { error: error.message };
+  refresh();
+  return { ok: `Partida "${nombre}" agregada.` };
+}
+
+export async function eliminarPartida(fd: FormData) {
+  await staff();
+  const supabase = await createClient();
+  await supabase.from("partidas").delete().eq("id", txt(fd, "id"));
+  refresh();
+}
+
+export async function aprobarPresupuesto(fd: FormData) {
+  await staff();
+  const supabase = await createClient();
+  await supabase
+    .from("presupuestos")
+    .update({ aprobado: fd.get("aprobado") === "true" })
+    .eq("id", txt(fd, "id"));
+  refresh();
+}
+
+// ---------- Cuotas ----------
+export async function generarCuotas(_: Estado, fd: FormData): Promise<Estado> {
+  await staff();
+  const supabase = await createClient();
+  const periodo = `${txt(fd, "mes")}-01`;
+  const { data, error } = await supabase.rpc("generar_cuotas", {
+    p_edificio: txt(fd, "edificio_id"),
+    p_periodo: periodo,
+  });
+  if (error) return { error: error.message };
+  refresh();
+  return data === 0
+    ? { ok: "Las cuotas de este mes ya estaban generadas." }
+    : { ok: `Se generaron ${data} cuotas.` };
+}
+
+export async function anularCuota(fd: FormData) {
+  await staff();
+  const supabase = await createClient();
+  await supabase.from("cuotas").update({ estado: "anulada" }).eq("id", txt(fd, "id"));
+  refresh();
+}
+
+// ---------- Pagos ----------
+const MEDIOS = ["transferencia", "yape", "plin", "efectivo", "deposito", "otro"];
+
+export async function registrarPago(_: Estado, fd: FormData): Promise<Estado> {
+  const perfil = await staff();
+  const monto = aNumero(txt(fd, "monto"));
+  if (monto == null || monto <= 0) return { error: "Monto inválido." };
+  const medio = txt(fd, "medio");
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("pagos").insert({
+    empresa_id: perfil.empresa_id,
+    cuota_id: txt(fd, "cuota_id"),
+    monto,
+    fecha: txt(fd, "fecha") || undefined,
+    medio: MEDIOS.includes(medio) ? medio : "transferencia",
+    operacion: txt(fd, "operacion") || null,
+    validado: true,
+    registrado_por: perfil.id,
+  });
+  if (error) return { error: error.message };
+  refresh();
+  return { ok: "Pago registrado." };
+}
+
+export async function eliminarPago(fd: FormData) {
+  await staff();
+  const supabase = await createClient();
+  await supabase.from("pagos").delete().eq("id", txt(fd, "id"));
+  refresh();
+}
