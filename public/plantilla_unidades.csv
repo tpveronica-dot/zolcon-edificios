@@ -1,0 +1,4 @@
+codigo;tipo;area_m2;porcentaje;propietario;documento;email;telefono
+101;departamento;85,5;3,25;Ana Torres;45678912;ana@correo.com;987654321
+102;departamento;92;3,50;Luis Quispe;41234567;luis@correo.com;912345678
+E-01;estacionamiento;12;0,45;Ana Torres;45678912;ana@correo.com;987654321
