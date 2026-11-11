@@ -14,7 +14,7 @@ superadmin (Zolcon) · admin_empresa · administrador (de edificios asignados) �
 ## Puesta en marcha
 1. Crear proyecto en Supabase → SQL Editor → ejecutar en orden los archivos de `supabase/migrations/`.
    En Authentication → URL Configuration, poner la URL de Vercel como Site URL y agregar `https://TU-APP.vercel.app/auth/callback` en Redirect URLs.
-2. Copiar `.env.example` a `.env.local` con la URL y la anon key del proyecto.
+2. Copiar `.env.example` a `.env.local` con la URL y la publishable key (o anon key) del proyecto.
 3. `npm install` y `npm run dev`.
 4. En Vercel: importar el repo de GitHub y cargar las mismas dos variables de entorno.
 
