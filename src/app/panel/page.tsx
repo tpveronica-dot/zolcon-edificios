@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { getPerfil, esStaff } from "@/lib/auth";
+import { getPerfil, esStaff, esAdminEmpresa } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { FormAccion, Campo, Tarjeta } from "@/components/form-accion";
 import { crearEdificio, crearEmpresa } from "./actions";
@@ -39,7 +39,11 @@ async function Contenido({ searchParams }: { searchParams: Promise<Record<string
   }
 
   if (!esStaff(perfil)) {
-    return <Tarjeta titulo="Portal del propietario">Muy pronto podrás ver aquí tus cuotas y pagos.</Tarjeta>;
+    return (
+      <Tarjeta titulo={perfil.rol === "junta" ? "Vista de la junta directiva" : "Portal del propietario"}>
+        <p className="text-sm text-slate-600">Muy pronto podrás ver aquí la información de tu edificio.</p>
+      </Tarjeta>
+    );
   }
 
   const supabase = await createClient();
@@ -86,6 +90,7 @@ async function Contenido({ searchParams }: { searchParams: Promise<Record<string
         )}
       </div>
 
+      {esAdminEmpresa(perfil) && (
       <Tarjeta titulo="Nuevo edificio">
         <FormAccion action={crearEdificio} boton="Crear edificio" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Campo name="nombre" label="Nombre" required />
@@ -94,6 +99,7 @@ async function Contenido({ searchParams }: { searchParams: Promise<Record<string
           <Campo name="dia_vencimiento" label="Día de vencimiento de la cuota" type="number" min={1} max={28} defaultValue={10} />
         </FormAccion>
       </Tarjeta>
+      )}
     </div>
   );
 }

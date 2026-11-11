@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { LoginForm } from "./login-form";
 import { Logo } from "@/components/iconos";
 
@@ -15,7 +16,9 @@ export default function LoginPage() {
         <p className="text-sm text-petroleo-100">© Zolcon</p>
       </section>
       <section className="flex flex-[1_1_420px] items-center justify-center p-6 sm:p-12">
-        <LoginForm />
+        <Suspense fallback={null}>
+          <LoginForm />
+        </Suspense>
       </section>
     </main>
   );

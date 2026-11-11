@@ -1,8 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { getPerfil } from "@/lib/auth";
+import { getPerfil, esAdminEmpresa } from "@/lib/auth";
+import { MenuLateral } from "@/components/menu-lateral";
 import { cerrarSesion } from "@/app/login/actions";
-import { IconoEdificio, IconoSalir, Logo } from "@/components/iconos";
+import { IconoSalir, Logo } from "@/components/iconos";
 
 export default function PanelLayout({ children }: LayoutProps<"/panel">) {
   return (
@@ -11,14 +12,9 @@ export default function PanelLayout({ children }: LayoutProps<"/panel">) {
         <Link href="/panel" className="px-2">
           <Logo claro />
         </Link>
-        <nav aria-label="Menú principal" className="flex flex-row flex-wrap gap-1 lg:flex-col">
-          <Link
-            href="/panel"
-            className="flex min-h-11 items-center gap-3 rounded-xl bg-petroleo-700 px-3 text-sm font-semibold text-white"
-          >
-            <IconoEdificio /> Edificios
-          </Link>
-        </nav>
+        <Suspense fallback={<div className="min-h-11" />}>
+          <Menu />
+        </Suspense>
         <div className="mt-auto hidden lg:block">
           <Suspense fallback={<span className="px-3 text-sm text-petroleo-100">…</span>}>
             <Usuario />
@@ -58,4 +54,9 @@ async function Usuario({ compacto = false }: { compacto?: boolean }) {
       </form>
     </div>
   );
+}
+
+async function Menu() {
+  const perfil = await getPerfil();
+  return <MenuLateral mostrarUsuarios={esAdminEmpresa(perfil)} />;
 }

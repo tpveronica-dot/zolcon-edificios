@@ -1,12 +1,14 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { iniciarSesion, registrarse, type EstadoForm } from "./actions";
 
 const inicial: EstadoForm = {};
 
 export function LoginForm() {
-  const [modo, setModo] = useState<"login" | "registro">("login");
+  const invitado = useSearchParams().get("registro") ?? "";
+  const [modo, setModo] = useState<"login" | "registro">(invitado ? "registro" : "login");
   const [estLogin, accLogin, cargandoLogin] = useActionState(iniciarSesion, inicial);
   const [estReg, accReg, cargandoReg] = useActionState(registrarse, inicial);
   const esLogin = modo === "login";
@@ -17,12 +19,16 @@ export function LoginForm() {
     <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8">
       <h2 className="text-2xl font-extrabold text-slate-900">{esLogin ? "Iniciar sesión" : "Crear cuenta"}</h2>
       <p className="mt-1 text-sm text-slate-500">
-        {esLogin ? "Ingresa a tu cuenta" : "Crea la cuenta de tu empresa administradora"}
+        {esLogin
+          ? "Ingresa a tu cuenta"
+          : invitado
+            ? "Te invitaron a Zolcon Edificios. Crea tu contraseña con este correo."
+            : "Crea la cuenta de tu empresa administradora"}
       </p>
 
       <form action={esLogin ? accLogin : accReg} className="mt-6 space-y-4">
         {!esLogin && <Campo name="nombre" label="Tu nombre" required />}
-        <Campo name="email" type="email" label="Correo" required />
+        <Campo name="email" type="email" label="Correo" required defaultValue={invitado} />
         <Campo name="password" type="password" label="Contraseña" required />
 
         {estado.error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{estado.error}</p>}
