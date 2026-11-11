@@ -354,3 +354,38 @@ export async function cambiarPropietario(_: Estado, fd: FormData): Promise<Estad
   if (error) return { error: error.message };
   volverALista(txt(fd, "edificio_id"), propietario_id ? "Propietario cambiado." : "La unidad quedó sin propietario.");
 }
+
+// ---------- Edificio: editar / eliminar ----------
+export async function actualizarEdificio(_: Estado, fd: FormData): Promise<Estado> {
+  await staff();
+  const id = txt(fd, "edificio_id");
+  const nombre = txt(fd, "nombre");
+  if (!nombre) return { error: "El nombre es obligatorio." };
+  const dia = Number(txt(fd, "dia_vencimiento"));
+  if (!Number.isInteger(dia) || dia < 1 || dia > 28) return { error: "El día de vencimiento debe estar entre 1 y 28." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("edificios")
+    .update({ nombre, direccion: txt(fd, "direccion") || null, distrito: txt(fd, "distrito") || null, dia_vencimiento: dia })
+    .eq("id", id)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "No tienes permiso para editar este edificio." };
+  volverALista(id, "Datos del edificio actualizados.");
+}
+
+export async function eliminarEdificio(_: Estado, fd: FormData): Promise<Estado> {
+  await staff();
+  const id = txt(fd, "edificio_id");
+  const supabase = await createClient();
+  const { data: edificio } = await supabase.from("edificios").select("nombre").eq("id", id).single();
+  if (!edificio) return { error: "Edificio no encontrado." };
+  if (txt(fd, "confirmacion").toLowerCase() !== edificio.nombre.trim().toLowerCase()) {
+    return { error: `Para confirmar, escribe exactamente: ${edificio.nombre}` };
+  }
+  const { data, error } = await supabase.from("edificios").delete().eq("id", id).select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "No tienes permiso para eliminar este edificio." };
+  redirect(`/panel?ok=${encodeURIComponent(`Edificio "${edificio.nombre}" eliminado.`)}`);
+}

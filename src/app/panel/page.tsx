@@ -5,17 +5,19 @@ import { createClient } from "@/lib/supabase/server";
 import { FormAccion, Campo, Tarjeta } from "@/components/form-accion";
 import { crearEdificio, crearEmpresa } from "./actions";
 
-export default function PanelPage() {
+export default function PanelPage({ searchParams }: PageProps<"/panel">) {
   return (
     <Suspense fallback={<p className="text-slate-500">Cargando…</p>}>
-      <Contenido />
+      <Contenido searchParams={searchParams} />
     </Suspense>
   );
 }
 
 const soles = (n: number) => `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-async function Contenido() {
+async function Contenido({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  const mensaje = typeof sp.ok === "string" ? sp.ok : null;
   const perfil = await getPerfil();
 
   // Usuario recién registrado sin empresa → alta de su administradora
@@ -49,6 +51,9 @@ async function Contenido() {
 
   return (
     <div className="space-y-8">
+      {mensaje && (
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">✓ {mensaje}</p>
+      )}
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Edificios</h1>
         <p className="text-sm text-slate-500">{edificios?.length ?? 0} edificios administrados</p>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getPerfil, esStaff } from "@/lib/auth";
+import { getPerfil, esStaff, esAdminEmpresa } from "@/lib/auth";
 import { Tarjeta } from "@/components/form-accion";
 import { Encabezado, Indicador } from "./encabezado";
 import { eliminarUnidad } from "../../actions";
@@ -56,7 +56,7 @@ async function Contenido({
 
   return (
     <div className="space-y-6">
-      <Encabezado id={id} edificio={edificio} activa="unidades" />
+      <Encabezado id={id} edificio={edificio} activa="unidades" gestionar={esAdminEmpresa(perfil)} />
 
       {mensaje && (
         <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">✓ {mensaje}</p>

@@ -6,10 +6,12 @@ export function Encabezado({
   id,
   edificio,
   activa,
+  gestionar = false,
 }: {
   id: string;
   edificio: { nombre: string; direccion: string | null; distrito: string | null; dia_vencimiento: number };
   activa: Pestana;
+  gestionar?: boolean; // muestra Editar / Eliminar
 }) {
   const pestanas: [Pestana, string, string][] = [
     ["unidades", "Unidades", `/panel/edificios/${id}`],
@@ -21,7 +23,25 @@ export function Encabezado({
       <Link href="/panel" className="text-sm text-slate-500 hover:underline">
         ← Edificios
       </Link>
-      <h1 className="mt-1 text-2xl font-semibold text-slate-900">{edificio.nombre}</h1>
+      <div className="mt-1 flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-semibold text-slate-900">{edificio.nombre}</h1>
+        {gestionar && (
+          <div className="flex gap-2">
+            <Link
+              href={`/panel/edificios/${id}/editar`}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Editar
+            </Link>
+            <Link
+              href={`/panel/edificios/${id}/editar#eliminar`}
+              className="rounded-lg border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+            >
+              Eliminar
+            </Link>
+          </div>
+        )}
+      </div>
       <p className="text-sm text-slate-500">
         {[edificio.direccion, edificio.distrito].filter(Boolean).join(", ")} · Vence el día {edificio.dia_vencimiento}
       </p>

@@ -33,3 +33,8 @@ export async function getPerfil(): Promise<Perfil> {
 export function esStaff(p: Perfil) {
   return ["superadmin", "admin_empresa", "administrador"].includes(p.rol);
 }
+
+// Puede crear, editar o eliminar edificios (no el administrador de un edificio)
+export function esAdminEmpresa(p: Perfil) {
+  return p.rol === "admin_empresa" || p.rol === "superadmin";
+}

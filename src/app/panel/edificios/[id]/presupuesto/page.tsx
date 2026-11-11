@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getPerfil, esStaff } from "@/lib/auth";
+import { getPerfil, esStaff, esAdminEmpresa } from "@/lib/auth";
 import { FormAccion, Campo, Tarjeta } from "@/components/form-accion";
 import { soles, hoyLima } from "@/lib/formato";
 import { Encabezado, Indicador } from "../encabezado";
@@ -53,7 +53,7 @@ async function Contenido({
 
   return (
     <div className="space-y-6">
-      <Encabezado id={id} edificio={edificio} activa="presupuesto" />
+      <Encabezado id={id} edificio={edificio} activa="presupuesto" gestionar={esAdminEmpresa(perfil)} />
 
       <div className="flex items-center gap-3 text-sm">
         <Link href={`?anio=${anio - 1}`} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-100">
