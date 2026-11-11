@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AvisoAmbiente } from "@/components/aviso-ambiente";
 
 export const metadata: Metadata = {
   title: "Zolcon Edificios",
@@ -9,7 +10,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" className="h-full antialiased">
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        <AvisoAmbiente />
+        {children}
+      </body>
     </html>
   );
 }
