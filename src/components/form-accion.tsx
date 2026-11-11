@@ -10,17 +10,19 @@ export function FormAccion({
   children,
   boton,
   className = "",
+  limpiar = true,
 }: {
   action: (prev: Estado, fd: FormData) => Promise<Estado>;
   children: React.ReactNode;
   boton: string;
   className?: string;
+  limpiar?: boolean; // false en formularios de edición
 }) {
   const [estado, accion, cargando] = useActionState(action, {});
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
-    if (estado.ok) ref.current?.reset();
-  }, [estado]);
+    if (estado.ok && limpiar) ref.current?.reset();
+  }, [estado, limpiar]);
 
   return (
     <form ref={ref} action={accion} className={className}>

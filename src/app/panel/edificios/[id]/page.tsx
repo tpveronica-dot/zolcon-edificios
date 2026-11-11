@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { Encabezado, Indicador } from "./encabezado";
 import { notFound } from "next/navigation";
@@ -134,7 +135,10 @@ async function Contenido({ params }: { params: Promise<{ id: string }> }) {
                       </td>
                       {staff && (
                         <td className="py-2 text-right">
-                          <form action={eliminarUnidad}>
+                          <Link href={`/panel/edificios/${id}/unidades/${u.id}`} className="mr-3 text-xs font-medium text-slate-700 hover:underline">
+                            Editar
+                          </Link>
+                          <form action={eliminarUnidad} className="inline">
                             <input type="hidden" name="id" value={u.id} />
                             <button className="text-xs text-slate-400 hover:text-red-600">Eliminar</button>
                           </form>

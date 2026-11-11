@@ -281,3 +281,75 @@ export async function eliminarPago(fd: FormData) {
   await supabase.from("pagos").delete().eq("id", txt(fd, "id"));
   refresh();
 }
+
+// ---------- Edición de unidades y propietarios ----------
+export async function actualizarUnidad(_: Estado, fd: FormData): Promise<Estado> {
+  await staff();
+  const codigo = txt(fd, "codigo");
+  if (!codigo) return { error: "El código es obligatorio." };
+  const tipo = txt(fd, "tipo");
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("unidades")
+    .update({
+      codigo,
+      tipo: (TIPOS as readonly string[]).includes(tipo) ? tipo : "departamento",
+      area_m2: aNumero(txt(fd, "area_m2")),
+      porcentaje_participacion: aNumero(txt(fd, "porcentaje")) ?? 0,
+    })
+    .eq("id", txt(fd, "unidad_id"));
+  if (error) return { error: error.code === "23505" ? `Ya existe otra unidad con el código ${codigo}.` : error.message };
+  refresh();
+  return { ok: "Datos de la unidad actualizados." };
+}
+
+export async function actualizarPropietario(_: Estado, fd: FormData): Promise<Estado> {
+  await staff();
+  const nombres = txt(fd, "nombres");
+  if (!nombres) return { error: "El nombre es obligatorio." };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("personas")
+    .update({
+      nombres,
+      documento: txt(fd, "documento") || null,
+      email: txt(fd, "email") || null,
+      telefono: txt(fd, "telefono") || null,
+    })
+    .eq("id", txt(fd, "persona_id"));
+  if (error) return { error: error.message };
+  refresh();
+  return { ok: "Datos del propietario actualizados." };
+}
+
+// Cambio de propietario (venta, herencia…): elegir uno existente o registrar uno nuevo
+export async function cambiarPropietario(_: Estado, fd: FormData): Promise<Estado> {
+  const perfil = await staff();
+  const supabase = await createClient();
+  let propietario_id: string | null = txt(fd, "persona_id") || null;
+
+  if (propietario_id === "nuevo") {
+    const nombres = txt(fd, "nombres");
+    if (!nombres) return { error: "Escribe el nombre del nuevo propietario." };
+    const { data, error } = await supabase
+      .from("personas")
+      .insert({
+        empresa_id: perfil.empresa_id,
+        nombres,
+        documento: txt(fd, "documento") || null,
+        email: txt(fd, "email") || null,
+        telefono: txt(fd, "telefono") || null,
+      })
+      .select("id")
+      .single();
+    if (error) return { error: error.message };
+    propietario_id = data.id;
+  } else if (propietario_id === "ninguno") {
+    propietario_id = null;
+  }
+
+  const { error } = await supabase.from("unidades").update({ propietario_id }).eq("id", txt(fd, "unidad_id"));
+  if (error) return { error: error.message };
+  refresh();
+  return { ok: propietario_id ? "Propietario asignado." : "La unidad quedó sin propietario." };
+}
