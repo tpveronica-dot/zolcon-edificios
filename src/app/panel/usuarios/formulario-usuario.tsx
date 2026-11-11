@@ -6,7 +6,7 @@ import { FormAccion, Campo, Selector } from "@/components/form-accion";
 import type { Estado } from "./actions";
 
 const ROLES: [string, string, string][] = [
-  ["administrador", "Administrador de edificio", "Gestiona unidades, cuotas y pagos de los edificios que le asignes."],
+  ["administrador", "Supervisor", "Supervisa los edificios que le asignes: unidades, cuotas y pagos."],
   ["junta", "Junta directiva", "Solo consulta: presupuesto, gastos, cuotas y morosidad de su edificio."],
   ["propietario", "Propietario", "Ve su unidad, sus cuotas y pagos. Se vincula con la ficha que tenga el mismo correo."],
   ["admin_empresa", "Admin. de empresa", "Acceso total a la empresa, incluida esta pantalla de usuarios."],

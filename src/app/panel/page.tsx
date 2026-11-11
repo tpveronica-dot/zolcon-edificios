@@ -3,8 +3,9 @@ import Link from "next/link";
 import { getPerfil, esStaff, esAdminEmpresa } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { FormAccion, Campo, Tarjeta } from "@/components/form-accion";
-import { crearEdificio, crearEmpresa } from "./actions";
+import { crearEmpresa } from "./actions";
 import { IconoEdificio } from "@/components/iconos";
+import { supervisoresPorEdificio } from "@/lib/supervisores";
 
 export default function PanelPage({ searchParams }: PageProps<"/panel">) {
   return (
@@ -51,6 +52,7 @@ async function Contenido({ searchParams }: { searchParams: Promise<Record<string
     supabase.from("edificios").select("id, nombre, direccion, distrito, unidades(count)").order("nombre"),
     supabase.from("estado_cuenta").select("edificio_id, deuda"),
   ]);
+  const supervisorDe = await supervisoresPorEdificio(supabase);
   const deuda = new Map<string, number>();
   for (const c of cuentas ?? []) deuda.set(c.edificio_id, (deuda.get(c.edificio_id) ?? 0) + Number(c.deuda));
 
@@ -59,9 +61,19 @@ async function Contenido({ searchParams }: { searchParams: Promise<Record<string
       {mensaje && (
         <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">✓ {mensaje}</p>
       )}
-      <div>
-        <h1 className="text-3xl font-extrabold text-slate-900">Edificios</h1>
-        <p className="text-sm text-slate-500">{edificios?.length ?? 0} edificios administrados</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900">Edificios</h1>
+          <p className="text-sm text-slate-500">{edificios?.length ?? 0} edificios administrados</p>
+        </div>
+        {esAdminEmpresa(perfil) && (
+          <Link
+            href="/panel/edificios/nuevo"
+            className="inline-flex min-h-11 items-center rounded-xl bg-petroleo-700 px-5 text-sm font-semibold text-white hover:bg-petroleo-800"
+          >
+            + Crear edificio
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -76,6 +88,10 @@ async function Contenido({ searchParams }: { searchParams: Promise<Record<string
             >
               <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-petroleo-50 text-petroleo-700"><IconoEdificio className="h-4 w-4" /></span>{e.nombre}</h3>
               <p className="text-sm text-slate-500">{[e.direccion, e.distrito].filter(Boolean).join(", ") || "—"}</p>
+              <p className="mt-2 text-xs text-slate-500">
+                Supervisor:{" "}
+                <span className="font-semibold text-slate-700">{supervisorDe.get(e.id)?.nombre ?? "Sin asignar"}</span>
+              </p>
               <div className="mt-4 flex justify-between text-sm">
                 <span className="text-slate-600">{nUnidades} unidades</span>
                 <span className={d > 0 ? "font-semibold text-red-700" : "font-semibold text-emerald-700"}>
@@ -86,20 +102,9 @@ async function Contenido({ searchParams }: { searchParams: Promise<Record<string
           );
         })}
         {edificios?.length === 0 && (
-          <p className="text-sm text-slate-500">Aún no tienes edificios. Crea el primero abajo.</p>
+          <p className="text-sm text-slate-500">Aún no tienes edificios. Usa “+ Crear edificio”.</p>
         )}
       </div>
-
-      {esAdminEmpresa(perfil) && (
-      <Tarjeta titulo="Nuevo edificio">
-        <FormAccion action={crearEdificio} boton="Crear edificio" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Campo name="nombre" label="Nombre" required />
-          <Campo name="direccion" label="Dirección" />
-          <Campo name="distrito" label="Distrito" />
-          <Campo name="dia_vencimiento" label="Día de vencimiento de la cuota" type="number" min={1} max={28} defaultValue={10} />
-        </FormAccion>
-      </Tarjeta>
-      )}
     </div>
   );
 }

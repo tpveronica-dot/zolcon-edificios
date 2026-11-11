@@ -15,7 +15,7 @@ export type Perfil = {
 export const NOMBRE_ROL: Record<Perfil["rol"], string> = {
   superadmin: "Superadmin",
   admin_empresa: "Admin. de empresa",
-  administrador: "Administrador de edificio",
+  administrador: "Supervisor",
   junta: "Junta directiva",
   propietario: "Propietario",
 };

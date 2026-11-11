@@ -38,18 +38,60 @@ export async function crearEdificio(_: Estado, fd: FormData): Promise<Estado> {
   const perfil = await staff();
   const nombre = txt(fd, "nombre");
   if (!nombre) return { error: "El nombre es obligatorio." };
+  const dia = Number(txt(fd, "dia_vencimiento") || 10);
+  if (!Number.isInteger(dia) || dia < 1 || dia > 28) return { error: "El día de vencimiento debe estar entre 1 y 28." };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("edificios").insert({
-    empresa_id: perfil.empresa_id,
-    nombre,
-    direccion: txt(fd, "direccion") || null,
-    distrito: txt(fd, "distrito") || null,
-    dia_vencimiento: Number(txt(fd, "dia_vencimiento") || 10),
-  });
+  const { data, error } = await supabase
+    .from("edificios")
+    .insert({
+      empresa_id: perfil.empresa_id,
+      nombre,
+      direccion: txt(fd, "direccion") || null,
+      distrito: txt(fd, "distrito") || null,
+      dia_vencimiento: dia,
+    })
+    .select("id")
+    .single();
   if (error) return { error: error.message };
-  refresh();
-  return { ok: `Edificio "${nombre}" creado.` };
+
+  const errSup = await asignarSupervisor(supabase, data.id, txt(fd, "supervisor_id") || null);
+  if (errSup) return { error: `Edificio creado, pero no se pudo asignar el supervisor: ${errSup}` };
+  redirect(`/panel?ok=${encodeURIComponent(`Edificio "${nombre}" creado.`)}`);
+}
+
+// Deja un único supervisor (rol "administrador") asignado al edificio; null = ninguno.
+// La junta directiva asignada al edificio no se toca.
+async function asignarSupervisor(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  edificioId: string,
+  supervisorId: string | null
+): Promise<string | null> {
+  const { data: actuales, error } = await supabase
+    .from("edificio_usuarios")
+    .select("usuario_id, perfiles(rol)")
+    .eq("edificio_id", edificioId);
+  if (error) return error.message;
+
+  const supervisores = (actuales ?? [])
+    .filter((a) => (a.perfiles as unknown as { rol: string } | null)?.rol === "administrador")
+    .map((a) => a.usuario_id);
+  const quitar = supervisores.filter((u) => u !== supervisorId);
+  if (quitar.length) {
+    const { error: e } = await supabase
+      .from("edificio_usuarios")
+      .delete()
+      .eq("edificio_id", edificioId)
+      .in("usuario_id", quitar);
+    if (e) return e.message;
+  }
+  if (supervisorId && !supervisores.includes(supervisorId)) {
+    const { error: e } = await supabase
+      .from("edificio_usuarios")
+      .insert({ edificio_id: edificioId, usuario_id: supervisorId });
+    if (e) return e.message;
+  }
+  return null;
 }
 
 // ---------- Unidades ----------
@@ -372,6 +414,8 @@ export async function actualizarEdificio(_: Estado, fd: FormData): Promise<Estad
     .select("id");
   if (error) return { error: error.message };
   if (!data?.length) return { error: "No tienes permiso para editar este edificio." };
+  const errSup = await asignarSupervisor(supabase, id, txt(fd, "supervisor_id") || null);
+  if (errSup) return { error: `Datos guardados, pero no se pudo asignar el supervisor: ${errSup}` };
   volverALista(id, "Datos del edificio actualizados.");
 }
 

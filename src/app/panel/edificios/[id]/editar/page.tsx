@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getPerfil, esAdminEmpresa } from "@/lib/auth";
 import { FormAccion, Campo, Tarjeta } from "@/components/form-accion";
 import { actualizarEdificio, eliminarEdificio } from "@/app/panel/actions";
+import { CampoSupervisor } from "@/components/campo-supervisor";
+import { listarSupervisores, supervisoresPorEdificio } from "@/lib/supervisores";
 
 export default function EditarEdificioPage({ params }: PageProps<"/panel/edificios/[id]/editar">) {
   return (
@@ -26,6 +28,10 @@ async function Contenido({ params }: { params: Promise<{ id: string }> }) {
     supabase.from("cuotas").select("id", { count: "exact", head: true }).eq("edificio_id", id),
   ]);
   if (!edificio) notFound();
+  const [supervisores, asignados] = await Promise.all([
+    listarSupervisores(supabase, perfil.empresa_id!),
+    supervisoresPorEdificio(supabase),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -59,6 +65,7 @@ async function Contenido({ params }: { params: Promise<{ id: string }> }) {
             defaultValue={edificio.dia_vencimiento}
             required
           />
+          <CampoSupervisor supervisores={supervisores} actual={asignados.get(id)?.id} />
         </FormAccion>
         <p className="mt-3 text-xs text-slate-500">
           Si cambias el día de vencimiento, aplica a las cuotas que se generen desde ahora.
