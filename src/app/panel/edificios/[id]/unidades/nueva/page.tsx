@@ -36,12 +36,12 @@ async function Contenido({ params }: { params: Promise<{ id: string }> }) {
           <Link href={`/panel/edificios/${id}`} className="text-sm text-slate-500 hover:underline">
             ← {edificio.nombre}
           </Link>
-          <h1 className="mt-1 text-2xl font-semibold text-slate-900">Agregar unidades</h1>
+          <h1 className="mt-1 text-3xl font-extrabold text-slate-900">Agregar unidades</h1>
           <p className="text-sm text-slate-500">Agrega una unidad a mano o carga varias desde Excel.</p>
         </div>
         <Link
           href={`/panel/edificios/${id}`}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 hover:bg-slate-100"
         >
           Cancelar
         </Link>

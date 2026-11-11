@@ -30,7 +30,7 @@ export function FormAccion({
       <div className="col-span-full flex flex-wrap items-center gap-3">
         <button
           disabled={cargando}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+          className="inline-flex min-h-11 items-center rounded-xl bg-petroleo-700 px-5 text-sm font-medium text-white hover:bg-petroleo-800 disabled:opacity-50"
         >
           {cargando ? "Guardando…" : boton}
         </button>
@@ -52,10 +52,10 @@ export function Campo({
 }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
     <label className={`block ${className}`}>
-      <span className="text-xs font-medium text-slate-600">{label}</span>
+      <span className="text-xs font-semibold text-slate-600">{label}</span>
       <input
         {...props}
-        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+        className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-petroleo-700 focus:ring-1 focus:ring-petroleo-700"
       />
     </label>
   );
@@ -68,10 +68,10 @@ export function Selector({
 }: React.SelectHTMLAttributes<HTMLSelectElement> & { label: string; opciones: [string, string][] }) {
   return (
     <label className="block">
-      <span className="text-xs font-medium text-slate-600">{label}</span>
+      <span className="text-xs font-semibold text-slate-600">{label}</span>
       <select
         {...props}
-        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
+        className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-petroleo-700 focus:ring-1 focus:ring-petroleo-700"
       >
         {opciones.map(([v, t]) => (
           <option key={v} value={v}>
@@ -85,8 +85,8 @@ export function Selector({
 
 export function Tarjeta({ titulo, children }: { titulo?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      {titulo && <h2 className="mb-4 text-base font-semibold text-slate-900">{titulo}</h2>}
+    <section className="rounded-2xl border border-slate-200 bg-white p-6">
+      {titulo && <h2 className="mb-4 text-lg font-bold text-slate-900">{titulo}</h2>}
       {children}
     </section>
   );

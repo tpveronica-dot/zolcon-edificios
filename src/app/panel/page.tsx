@@ -4,6 +4,7 @@ import { getPerfil, esStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { FormAccion, Campo, Tarjeta } from "@/components/form-accion";
 import { crearEdificio, crearEmpresa } from "./actions";
+import { IconoEdificio } from "@/components/iconos";
 
 export default function PanelPage({ searchParams }: PageProps<"/panel">) {
   return (
@@ -55,7 +56,7 @@ async function Contenido({ searchParams }: { searchParams: Promise<Record<string
         <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">✓ {mensaje}</p>
       )}
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Edificios</h1>
+        <h1 className="text-3xl font-extrabold text-slate-900">Edificios</h1>
         <p className="text-sm text-slate-500">{edificios?.length ?? 0} edificios administrados</p>
       </div>
 
@@ -67,13 +68,13 @@ async function Contenido({ searchParams }: { searchParams: Promise<Record<string
             <Link
               key={e.id}
               href={`/panel/edificios/${e.id}`}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400"
+              className="group rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-petroleo-700"
             >
-              <h3 className="font-semibold text-slate-900">{e.nombre}</h3>
+              <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-petroleo-50 text-petroleo-700"><IconoEdificio className="h-4 w-4" /></span>{e.nombre}</h3>
               <p className="text-sm text-slate-500">{[e.direccion, e.distrito].filter(Boolean).join(", ") || "—"}</p>
               <div className="mt-4 flex justify-between text-sm">
                 <span className="text-slate-600">{nUnidades} unidades</span>
-                <span className={d > 0 ? "font-medium text-red-600" : "text-emerald-700"}>
+                <span className={d > 0 ? "font-semibold text-red-700" : "font-semibold text-emerald-700"}>
                   {d > 0 ? `Deuda ${soles(d)}` : "Al día"}
                 </span>
               </div>

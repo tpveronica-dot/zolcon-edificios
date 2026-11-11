@@ -6,6 +6,7 @@ import { getPerfil, esStaff, esAdminEmpresa } from "@/lib/auth";
 import { FormAccion, Campo, Selector, Tarjeta } from "@/components/form-accion";
 import { soles, nombreMes, hoyLima, fechaCorta } from "@/lib/formato";
 import { Encabezado, Indicador } from "../encabezado";
+import { EstadoCuota } from "@/components/estado-cuota";
 import { anularCuota, eliminarPago, generarCuotas, registrarPago } from "../../../actions";
 
 export default function CuotasPage({ params, searchParams }: PageProps<"/panel/edificios/[id]/cuotas">) {
@@ -25,12 +26,6 @@ const MEDIOS: [string, string][] = [
   ["otro", "Otro"],
 ];
 
-const ESTADO: Record<string, [string, string]> = {
-  pendiente: ["Pendiente", "bg-amber-100 text-amber-800"],
-  parcial: ["Parcial", "bg-sky-100 text-sky-800"],
-  pagada: ["Pagada", "bg-emerald-100 text-emerald-800"],
-  anulada: ["Anulada", "bg-slate-100 text-slate-500"],
-};
 
 function mover(ym: string, delta: number) {
   const [a, m] = ym.split("-").map(Number);
@@ -90,9 +85,9 @@ async function Contenido({
       <Encabezado id={id} edificio={edificio} activa="cuotas" gestionar={esAdminEmpresa(perfil)} />
 
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <Link href={`?mes=${mover(mes, -1)}`} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-100">←</Link>
-        <span className="text-lg font-semibold capitalize text-slate-900">{nombreMes(mes)}</span>
-        <Link href={`?mes=${mover(mes, 1)}`} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-100">→</Link>
+        <Link href={`?mes=${mover(mes, -1)}`} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 hover:bg-slate-100">←</Link>
+        <span className="font-display text-xl font-bold capitalize text-slate-900">{nombreMes(mes)}</span>
+        <Link href={`?mes=${mover(mes, 1)}`} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 hover:bg-slate-100">→</Link>
         {mes !== hoy.slice(0, 7) && (
           <Link href="?" className="text-slate-500 hover:underline">Ir al mes actual</Link>
         )}
@@ -137,7 +132,6 @@ async function Contenido({
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filas.map((f) => {
-                  const [txtEstado, clase] = ESTADO[f.estado] ?? ESTADO.pendiente;
                   const vencida = f.estado !== "pagada" && f.estado !== "anulada" && f.vencimiento < hoy;
                   const deuda = deudaUnidad.get(f.unidad_id)?.deuda ?? 0;
                   return (
@@ -166,7 +160,7 @@ async function Contenido({
                             <summary className="cursor-pointer text-xs font-medium text-slate-700 hover:underline">
                               + Registrar pago
                             </summary>
-                            <div className="mt-2 rounded-xl bg-slate-50 p-3">
+                            <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
                               <FormAccion action={registrarPago} boton="Guardar pago" className="grid gap-2 sm:grid-cols-2">
                                 <input type="hidden" name="cuota_id" value={f.id} />
                                 <Campo name="monto" label="Monto S/" inputMode="decimal" defaultValue={f.saldo.toFixed(2)} required />
@@ -186,8 +180,7 @@ async function Contenido({
                       <td className="py-3 pr-4 text-right tabular-nums">{soles(f.pagado)}</td>
                       <td className="py-3 pr-4 text-right tabular-nums">{soles(f.estado === "anulada" ? 0 : f.saldo)}</td>
                       <td className="py-3 pr-4">
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${clase}`}>{txtEstado}</span>
-                        {vencida && <span className="ml-1 text-xs font-medium text-red-600">Vencida</span>}
+                        <EstadoCuota estado={f.estado} vencida={vencida} />
                       </td>
                       <td className={`py-3 pr-4 text-right tabular-nums ${deuda > 0 ? "font-medium text-red-600" : "text-slate-400"}`}>
                         {soles(deuda)}

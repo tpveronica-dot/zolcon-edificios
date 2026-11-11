@@ -14,8 +14,8 @@ export function LoginForm() {
   const cargando = esLogin ? cargandoLogin : cargandoReg;
 
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-      <h1 className="text-2xl font-semibold text-slate-900">Zolcon Edificios</h1>
+    <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8">
+      <h2 className="text-2xl font-extrabold text-slate-900">{esLogin ? "Iniciar sesión" : "Crear cuenta"}</h2>
       <p className="mt-1 text-sm text-slate-500">
         {esLogin ? "Ingresa a tu cuenta" : "Crea la cuenta de tu empresa administradora"}
       </p>
@@ -30,7 +30,7 @@ export function LoginForm() {
 
         <button
           disabled={cargando}
-          className="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+          className="min-h-11 w-full rounded-xl bg-petroleo-700 text-sm font-semibold text-white hover:bg-petroleo-800 disabled:opacity-50"
         >
           {cargando ? "Procesando…" : esLogin ? "Ingresar" : "Crear cuenta"}
         </button>
@@ -38,7 +38,7 @@ export function LoginForm() {
 
       <button
         onClick={() => setModo(esLogin ? "registro" : "login")}
-        className="mt-4 w-full text-center text-sm text-slate-600 hover:underline"
+        className="mt-4 min-h-11 w-full text-center text-sm font-medium text-petroleo-700 hover:underline"
       >
         {esLogin ? "¿Eres una administradora nueva? Regístrate" : "¿Ya tienes cuenta? Ingresa"}
       </button>
@@ -55,7 +55,7 @@ export function Campo({
       <span className="text-sm font-medium text-slate-700">{label}</span>
       <input
         {...props}
-        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+        className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-petroleo-700 focus:ring-1 focus:ring-petroleo-700"
       />
     </label>
   );
