@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getPerfil, esStaff } from "@/lib/auth";
+import { getPerfil, esStaff, esAdminEmpresa } from "@/lib/auth";
 import { FormAccion, Campo, Tarjeta } from "@/components/form-accion";
 import { soles, hoyLima } from "@/lib/formato";
 import { Encabezado, Indicador } from "../encabezado";
@@ -53,14 +53,14 @@ async function Contenido({
 
   return (
     <div className="space-y-6">
-      <Encabezado id={id} edificio={edificio} activa="presupuesto" />
+      <Encabezado id={id} edificio={edificio} activa="presupuesto" gestionar={esAdminEmpresa(perfil)} />
 
       <div className="flex items-center gap-3 text-sm">
-        <Link href={`?anio=${anio - 1}`} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-100">
+        <Link href={`?anio=${anio - 1}`} className="inline-flex min-h-10 items-center rounded-xl border border-slate-200 bg-white px-3 hover:bg-slate-100">
           ← {anio - 1}
         </Link>
-        <span className="text-lg font-semibold text-slate-900">Presupuesto {anio}</span>
-        <Link href={`?anio=${anio + 1}`} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-100">
+        <span className="font-display text-xl font-bold text-slate-900">Presupuesto {anio}</span>
+        <Link href={`?anio=${anio + 1}`} className="inline-flex min-h-10 items-center rounded-xl border border-slate-200 bg-white px-3 hover:bg-slate-100">
           {anio + 1} →
         </Link>
         {presupuesto && (
@@ -77,7 +77,7 @@ async function Contenido({
             <form action={crearPresupuesto} className="mt-4">
               <input type="hidden" name="edificio_id" value={id} />
               <input type="hidden" name="anio" value={anio} />
-              <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
+              <button className="inline-flex min-h-11 items-center rounded-xl bg-petroleo-700 px-5 text-sm font-medium text-white hover:bg-petroleo-800">
                 Crear presupuesto {anio}
               </button>
             </form>
@@ -115,7 +115,7 @@ async function Contenido({
                       <tr key={p.id}>
                         <td className="py-2 pr-4 font-medium text-slate-900">
                           {p.nombre}
-                          {p.es_fondo_reserva && <span className="ml-2 rounded bg-sky-100 px-1.5 py-0.5 text-xs text-sky-800">Reserva</span>}
+                          {p.es_fondo_reserva && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">Reserva</span>}
                         </td>
                         <td className="py-2 pr-4 text-right tabular-nums">{soles(Number(p.monto_mensual))}</td>
                         <td className="py-2 pr-4 text-right tabular-nums">{soles(anual)}</td>
@@ -166,7 +166,7 @@ async function Contenido({
                 <form action={aprobarPresupuesto}>
                   <input type="hidden" name="id" value={presupuesto.id} />
                   <input type="hidden" name="aprobado" value={String(!presupuesto.aprobado)} />
-                  <button className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-100">
+                  <button className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 px-5 text-sm font-medium hover:bg-slate-100">
                     {presupuesto.aprobado ? "Volver a borrador" : "Marcar como aprobado"}
                   </button>
                 </form>

@@ -9,6 +9,11 @@ import { parsearCsv, aNumero } from "@/lib/csv";
 export type Estado = { error?: string; ok?: string };
 
 const txt = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
+// Vuelve a la lista de unidades del edificio mostrando un mensaje
+function volverALista(edificioId: string, mensaje: string): never {
+  redirect(`/panel/edificios/${edificioId}?ok=${encodeURIComponent(mensaje)}`);
+}
+
 const TIPOS = ["departamento", "estacionamiento", "deposito", "local"] as const;
 
 async function staff() {
@@ -33,18 +38,60 @@ export async function crearEdificio(_: Estado, fd: FormData): Promise<Estado> {
   const perfil = await staff();
   const nombre = txt(fd, "nombre");
   if (!nombre) return { error: "El nombre es obligatorio." };
+  const dia = Number(txt(fd, "dia_vencimiento") || 10);
+  if (!Number.isInteger(dia) || dia < 1 || dia > 28) return { error: "El día de vencimiento debe estar entre 1 y 28." };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("edificios").insert({
-    empresa_id: perfil.empresa_id,
-    nombre,
-    direccion: txt(fd, "direccion") || null,
-    distrito: txt(fd, "distrito") || null,
-    dia_vencimiento: Number(txt(fd, "dia_vencimiento") || 10),
-  });
+  const { data, error } = await supabase
+    .from("edificios")
+    .insert({
+      empresa_id: perfil.empresa_id,
+      nombre,
+      direccion: txt(fd, "direccion") || null,
+      distrito: txt(fd, "distrito") || null,
+      dia_vencimiento: dia,
+    })
+    .select("id")
+    .single();
   if (error) return { error: error.message };
-  refresh();
-  return { ok: `Edificio "${nombre}" creado.` };
+
+  const errSup = await asignarSupervisor(supabase, data.id, txt(fd, "supervisor_id") || null);
+  if (errSup) return { error: `Edificio creado, pero no se pudo asignar el supervisor: ${errSup}` };
+  redirect(`/panel?ok=${encodeURIComponent(`Edificio "${nombre}" creado.`)}`);
+}
+
+// Deja un único supervisor (rol "administrador") asignado al edificio; null = ninguno.
+// La junta directiva asignada al edificio no se toca.
+async function asignarSupervisor(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  edificioId: string,
+  supervisorId: string | null
+): Promise<string | null> {
+  const { data: actuales, error } = await supabase
+    .from("edificio_usuarios")
+    .select("usuario_id, perfiles(rol)")
+    .eq("edificio_id", edificioId);
+  if (error) return error.message;
+
+  const supervisores = (actuales ?? [])
+    .filter((a) => (a.perfiles as unknown as { rol: string } | null)?.rol === "administrador")
+    .map((a) => a.usuario_id);
+  const quitar = supervisores.filter((u) => u !== supervisorId);
+  if (quitar.length) {
+    const { error: e } = await supabase
+      .from("edificio_usuarios")
+      .delete()
+      .eq("edificio_id", edificioId)
+      .in("usuario_id", quitar);
+    if (e) return e.message;
+  }
+  if (supervisorId && !supervisores.includes(supervisorId)) {
+    const { error: e } = await supabase
+      .from("edificio_usuarios")
+      .insert({ edificio_id: edificioId, usuario_id: supervisorId });
+    if (e) return e.message;
+  }
+  return null;
 }
 
 // ---------- Unidades ----------
@@ -86,8 +133,7 @@ export async function crearUnidad(_: Estado, fd: FormData): Promise<Estado> {
   if (error) {
     return { error: error.code === "23505" ? `Ya existe la unidad ${codigo}.` : error.message };
   }
-  refresh();
-  return { ok: `Unidad ${codigo} agregada.` };
+  volverALista(edificio_id, `Unidad ${codigo} agregada.`);
 }
 
 export async function eliminarUnidad(fd: FormData) {
@@ -171,11 +217,11 @@ export async function importarUnidades(_: Estado, fd: FormData): Promise<Estado>
     else importadas++;
   }
 
-  refresh();
   if (errores.length) {
+    refresh();
     return { error: `Se importaron ${importadas} unidades. Errores:\n${errores.slice(0, 10).join("\n")}` };
   }
-  return { ok: `Se importaron ${importadas} unidades.` };
+  volverALista(edificio_id, `Se importaron ${importadas} unidades.`);
 }
 
 // ---------- Presupuesto ----------
@@ -280,4 +326,110 @@ export async function eliminarPago(fd: FormData) {
   const supabase = await createClient();
   await supabase.from("pagos").delete().eq("id", txt(fd, "id"));
   refresh();
+}
+
+// ---------- Edición de unidades y propietarios ----------
+export async function actualizarUnidad(_: Estado, fd: FormData): Promise<Estado> {
+  await staff();
+  const codigo = txt(fd, "codigo");
+  if (!codigo) return { error: "El código es obligatorio." };
+  const tipo = txt(fd, "tipo");
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("unidades")
+    .update({
+      codigo,
+      tipo: (TIPOS as readonly string[]).includes(tipo) ? tipo : "departamento",
+      area_m2: aNumero(txt(fd, "area_m2")),
+      porcentaje_participacion: aNumero(txt(fd, "porcentaje")) ?? 0,
+    })
+    .eq("id", txt(fd, "unidad_id"));
+  if (error) return { error: error.code === "23505" ? `Ya existe otra unidad con el código ${codigo}.` : error.message };
+  volverALista(txt(fd, "edificio_id"), `Unidad ${codigo} actualizada.`);
+}
+
+export async function actualizarPropietario(_: Estado, fd: FormData): Promise<Estado> {
+  await staff();
+  const nombres = txt(fd, "nombres");
+  if (!nombres) return { error: "El nombre es obligatorio." };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("personas")
+    .update({
+      nombres,
+      documento: txt(fd, "documento") || null,
+      email: txt(fd, "email") || null,
+      telefono: txt(fd, "telefono") || null,
+    })
+    .eq("id", txt(fd, "persona_id"));
+  if (error) return { error: error.message };
+  volverALista(txt(fd, "edificio_id"), `Datos de ${nombres} actualizados.`);
+}
+
+// Cambio de propietario (venta, herencia…): elegir uno existente o registrar uno nuevo
+export async function cambiarPropietario(_: Estado, fd: FormData): Promise<Estado> {
+  const perfil = await staff();
+  const supabase = await createClient();
+  let propietario_id: string | null = txt(fd, "persona_id") || null;
+
+  if (propietario_id === "nuevo") {
+    const nombres = txt(fd, "nombres");
+    if (!nombres) return { error: "Escribe el nombre del nuevo propietario." };
+    const { data, error } = await supabase
+      .from("personas")
+      .insert({
+        empresa_id: perfil.empresa_id,
+        nombres,
+        documento: txt(fd, "documento") || null,
+        email: txt(fd, "email") || null,
+        telefono: txt(fd, "telefono") || null,
+      })
+      .select("id")
+      .single();
+    if (error) return { error: error.message };
+    propietario_id = data.id;
+  } else if (propietario_id === "ninguno") {
+    propietario_id = null;
+  }
+
+  const { error } = await supabase.from("unidades").update({ propietario_id }).eq("id", txt(fd, "unidad_id"));
+  if (error) return { error: error.message };
+  volverALista(txt(fd, "edificio_id"), propietario_id ? "Propietario cambiado." : "La unidad quedó sin propietario.");
+}
+
+// ---------- Edificio: editar / eliminar ----------
+export async function actualizarEdificio(_: Estado, fd: FormData): Promise<Estado> {
+  await staff();
+  const id = txt(fd, "edificio_id");
+  const nombre = txt(fd, "nombre");
+  if (!nombre) return { error: "El nombre es obligatorio." };
+  const dia = Number(txt(fd, "dia_vencimiento"));
+  if (!Number.isInteger(dia) || dia < 1 || dia > 28) return { error: "El día de vencimiento debe estar entre 1 y 28." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("edificios")
+    .update({ nombre, direccion: txt(fd, "direccion") || null, distrito: txt(fd, "distrito") || null, dia_vencimiento: dia })
+    .eq("id", id)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "No tienes permiso para editar este edificio." };
+  const errSup = await asignarSupervisor(supabase, id, txt(fd, "supervisor_id") || null);
+  if (errSup) return { error: `Datos guardados, pero no se pudo asignar el supervisor: ${errSup}` };
+  volverALista(id, "Datos del edificio actualizados.");
+}
+
+export async function eliminarEdificio(_: Estado, fd: FormData): Promise<Estado> {
+  await staff();
+  const id = txt(fd, "edificio_id");
+  const supabase = await createClient();
+  const { data: edificio } = await supabase.from("edificios").select("nombre").eq("id", id).single();
+  if (!edificio) return { error: "Edificio no encontrado." };
+  if (txt(fd, "confirmacion").toLowerCase() !== edificio.nombre.trim().toLowerCase()) {
+    return { error: `Para confirmar, escribe exactamente: ${edificio.nombre}` };
+  }
+  const { data, error } = await supabase.from("edificios").delete().eq("id", id).select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "No tienes permiso para eliminar este edificio." };
+  redirect(`/panel?ok=${encodeURIComponent(`Edificio "${edificio.nombre}" eliminado.`)}`);
 }

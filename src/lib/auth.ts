@@ -9,6 +9,15 @@ export type Perfil = {
   rol: "superadmin" | "admin_empresa" | "administrador" | "junta" | "propietario";
   empresa_id: string | null;
   empresa_nombre: string | null;
+  activo: boolean;
+};
+
+export const NOMBRE_ROL: Record<Perfil["rol"], string> = {
+  superadmin: "Superadmin",
+  admin_empresa: "Admin. de empresa",
+  administrador: "Supervisor",
+  junta: "Junta directiva",
+  propietario: "Propietario",
 };
 
 // Capa de acceso: devuelve el perfil del usuario actual o redirige al login
@@ -21,15 +30,21 @@ export async function getPerfil(): Promise<Perfil> {
 
   const { data } = await supabase
     .from("perfiles")
-    .select("id, email, nombre, rol, empresa_id, empresas(nombre)")
+    .select("id, email, nombre, rol, empresa_id, activo, empresas(nombre)")
     .eq("id", user.id)
     .single();
 
   if (!data) redirect("/login");
+  if (data.activo === false) redirect("/cuenta-desactivada");
   const empresa = data.empresas as unknown as { nombre: string } | null;
   return { ...data, empresa_nombre: empresa?.nombre ?? null } as Perfil;
 }
 
 export function esStaff(p: Perfil) {
   return ["superadmin", "admin_empresa", "administrador"].includes(p.rol);
+}
+
+// Puede crear, editar o eliminar edificios (no el administrador de un edificio)
+export function esAdminEmpresa(p: Perfil) {
+  return p.rol === "admin_empresa" || p.rol === "superadmin";
 }
