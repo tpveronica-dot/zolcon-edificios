@@ -60,35 +60,35 @@ export async function crearEdificio(_: Estado, fd: FormData): Promise<Estado> {
   redirect(`/panel?ok=${encodeURIComponent(`Edificio "${nombre}" creado.`)}`);
 }
 
-// Deja un único supervisor (rol "administrador") asignado al edificio; null = ninguno.
-// La junta directiva asignada al edificio no se toca.
+// Deja un único supervisor (personal con cargo Supervisor) en el edificio; null = ninguno.
+// El acceso en la app del supervisor se sincroniza solo en la base de datos.
 async function asignarSupervisor(
   supabase: Awaited<ReturnType<typeof createClient>>,
   edificioId: string,
-  supervisorId: string | null
+  personalId: string | null
 ): Promise<string | null> {
   const { data: actuales, error } = await supabase
-    .from("edificio_usuarios")
-    .select("usuario_id, perfiles(rol)")
+    .from("personal_edificios")
+    .select("personal_id, personal(cargo)")
     .eq("edificio_id", edificioId);
   if (error) return error.message;
 
   const supervisores = (actuales ?? [])
-    .filter((a) => (a.perfiles as unknown as { rol: string } | null)?.rol === "administrador")
-    .map((a) => a.usuario_id);
-  const quitar = supervisores.filter((u) => u !== supervisorId);
+    .filter((a) => (a.personal as unknown as { cargo: string } | null)?.cargo === "supervisor")
+    .map((a) => a.personal_id);
+  const quitar = supervisores.filter((p) => p !== personalId);
   if (quitar.length) {
     const { error: e } = await supabase
-      .from("edificio_usuarios")
+      .from("personal_edificios")
       .delete()
       .eq("edificio_id", edificioId)
-      .in("usuario_id", quitar);
+      .in("personal_id", quitar);
     if (e) return e.message;
   }
-  if (supervisorId && !supervisores.includes(supervisorId)) {
+  if (personalId && !supervisores.includes(personalId)) {
     const { error: e } = await supabase
-      .from("edificio_usuarios")
-      .insert({ edificio_id: edificioId, usuario_id: supervisorId });
+      .from("personal_edificios")
+      .insert({ edificio_id: edificioId, personal_id: personalId });
     if (e) return e.message;
   }
   return null;

@@ -11,7 +11,7 @@ const ROLES: [string, string, string][] = [
   ["propietario", "Propietario", "Ve su unidad, sus cuotas y pagos. Se vincula con la ficha que tenga el mismo correo."],
   ["admin_empresa", "Admin. de empresa", "Acceso total a la empresa, incluida esta pantalla de usuarios."],
 ];
-const CON_EDIFICIOS = ["administrador", "junta"];
+const CON_EDIFICIOS = ["junta"];
 
 export function FormularioUsuario({
   action,
@@ -51,6 +51,14 @@ export function FormularioUsuario({
         {descripcion && <p className="mt-2 text-sm text-slate-500">{descripcion}</p>}
         {esYo && <p className="mt-1 text-xs text-amber-700">No puedes cambiar tu propio rol.</p>}
       </div>
+
+      {rol === "administrador" && (
+        <p className="rounded-xl border border-petroleo-100 bg-petroleo-50 p-4 text-sm text-petroleo-800">
+          Los edificios de un supervisor se asignan en{" "}
+          <Link href="/panel/personal" className="font-semibold underline">Personal</Link>. Si su ficha de Personal tiene este
+          mismo correo, se vincula sola cuando cree su cuenta.
+        </p>
+      )}
 
       {CON_EDIFICIOS.includes(rol) && (
         <fieldset className="rounded-xl border border-slate-200 p-4">

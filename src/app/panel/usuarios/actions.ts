@@ -8,7 +8,7 @@ import { getPerfil, esAdminEmpresa } from "@/lib/auth";
 export type Estado = { error?: string; ok?: string };
 
 const ROLES = ["admin_empresa", "administrador", "junta", "propietario"] as const;
-const CON_EDIFICIOS = ["administrador", "junta"];
+const CON_EDIFICIOS = ["junta"]; // los edificios del Supervisor se asignan en Personal
 const txt = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
 async function admin() {
@@ -40,7 +40,11 @@ export async function crearUsuario(_: Estado, fd: FormData): Promise<Estado> {
   });
   if (error) return { error: error.message };
   if (data === "activado") volver(`${email} ya tenía cuenta: ahora tiene acceso a tu empresa.`);
-  volver(`Usuario creado. Envíale su enlace de acceso (en "Invitaciones pendientes").`);
+  volver(
+    rol === "administrador"
+      ? `Usuario creado. Envíale su enlace y asígnale edificios en Personal (se vincula solo si su ficha tiene el mismo correo).`
+      : `Usuario creado. Envíale su enlace de acceso (en "Invitaciones pendientes").`
+  );
 }
 
 export async function actualizarUsuario(_: Estado, fd: FormData): Promise<Estado> {
@@ -59,7 +63,10 @@ export async function actualizarUsuario(_: Estado, fd: FormData): Promise<Estado
     if (error) return { error: error.message };
   }
 
-  // Sincronizar edificios asignados (solo los de mi empresa, por las reglas de la base)
+  // Supervisor: su acceso lo calcula la base de datos desde Personal
+  if (rol === "administrador") volver("Usuario actualizado.");
+
+  // Junta: sincronizar edificios asignados (solo los de mi empresa, por las reglas de la base)
   const { data: actuales } = await supabase.from("edificio_usuarios").select("edificio_id").eq("usuario_id", id);
   const antes = new Set((actuales ?? []).map((a) => a.edificio_id));
   const despues = new Set(edificios);

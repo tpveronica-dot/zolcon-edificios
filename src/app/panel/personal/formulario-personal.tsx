@@ -51,6 +51,9 @@ export function FormularioPersonal({
 
       <fieldset className="rounded-xl border border-slate-200 p-4 sm:col-span-2">
         <legend className="px-1 text-xs font-semibold text-slate-600">Edificios asignados</legend>
+        <p className="mb-2 text-xs text-slate-500">
+          Si es Supervisor y tiene usuario, estos son los edificios que verá y gestionará en la app.
+        </p>
         {edificios.length === 0 ? (
           <p className="text-sm text-slate-500">Primero crea un edificio.</p>
         ) : (
