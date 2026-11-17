@@ -27,6 +27,7 @@ export function FormAccion({
   return (
     <form ref={ref} action={accion} className={className}>
       {children}
+      {boton && (
       <div className="col-span-full flex flex-wrap items-center gap-3">
         <button
           disabled={cargando}
@@ -36,6 +37,7 @@ export function FormAccion({
         </button>
         {estado.ok && <span className="text-sm text-emerald-700">{estado.ok}</span>}
       </div>
+      )}
       {estado.error && (
         <p className="col-span-full whitespace-pre-line rounded-lg bg-red-50 p-3 text-sm text-red-700">
           {estado.error}

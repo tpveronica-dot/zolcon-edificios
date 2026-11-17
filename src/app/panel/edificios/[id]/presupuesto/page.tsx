@@ -48,9 +48,11 @@ async function Contenido({
 
   // Ejecución: lo gastado por partida en el año
   const { data: ejecucion } = presupuesto
-    ? await supabase.from("ejecucion_presupuesto").select("partida_id, ejecutado").eq("edificio_id", id).eq("anio", anio)
+    ? await supabase.from("ejecucion_mensual_anual").select("partida_id, ejecutado").eq("edificio_id", id).eq("anio", anio)
     : { data: [] };
   const gastado = new Map((ejecucion ?? []).map((e) => [e.partida_id, Number(e.ejecutado)]));
+  const noPresupuestado = gastado.get(null as unknown as string) ?? 0;
+  const totalGastado = [...gastado.values()].reduce((a, b) => a + b, 0);
 
   return (
     <div className="space-y-6">
@@ -149,8 +151,19 @@ async function Contenido({
                     <td className="py-2 pr-4">Total</td>
                     <td className="py-2 pr-4 text-right tabular-nums">{soles(mensual)}</td>
                     <td className="py-2 pr-4 text-right tabular-nums">{soles(mensual * 12)}</td>
-                    <td colSpan={3} />
+                    <td className="py-2 pr-4 text-right tabular-nums">{soles(totalGastado - noPresupuestado)}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">
+                      {mensual ? (((totalGastado - noPresupuestado) / (mensual * 12)) * 100).toFixed(0) : 0} %
+                    </td>
+                    <td />
                   </tr>
+                  {noPresupuestado > 0 && (
+                    <tr className="text-amber-800">
+                      <td className="py-2 pr-4" colSpan={3}>Gastos no presupuestados {anio}</td>
+                      <td className="py-2 pr-4 text-right tabular-nums">{soles(noPresupuestado)}</td>
+                      <td colSpan={2} />
+                    </tr>
+                  )}
                 </tfoot>
               </table>
             )}

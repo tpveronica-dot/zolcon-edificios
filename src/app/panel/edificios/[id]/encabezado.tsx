@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-type Pestana = "unidades" | "presupuesto" | "cuotas";
+type Pestana = "unidades" | "presupuesto" | "ejecucion" | "cuotas";
 
 export function Encabezado({
   id,
@@ -16,6 +16,7 @@ export function Encabezado({
   const pestanas: [Pestana, string, string][] = [
     ["unidades", "Unidades", `/panel/edificios/${id}`],
     ["presupuesto", "Presupuesto", `/panel/edificios/${id}/presupuesto`],
+    ["ejecucion", "Ejecución mensual", `/panel/edificios/${id}/ejecucion`],
     ["cuotas", "Cuotas y pagos", `/panel/edificios/${id}/cuotas`],
   ];
   return (
@@ -45,12 +46,12 @@ export function Encabezado({
       <p className="text-sm text-slate-500">
         {[edificio.direccion, edificio.distrito].filter(Boolean).join(", ")} · Vence el día {edificio.dia_vencimiento}
       </p>
-      <nav className="mt-5 flex gap-1 border-b border-slate-200">
+      <nav className="mt-5 flex gap-1 overflow-x-auto border-b border-slate-200">
         {pestanas.map(([clave, texto, href]) => (
           <Link
             key={clave}
             href={href}
-            className={`-mb-px border-b-2 px-4 py-3 text-sm font-semibold ${
+            className={`-mb-px whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold ${
               activa === clave
                 ? "border-petroleo-700 text-petroleo-700"
                 : "border-transparent text-slate-500 hover:text-slate-800"

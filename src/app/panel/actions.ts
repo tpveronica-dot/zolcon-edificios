@@ -492,3 +492,86 @@ export async function eliminarEdificio(_: Estado, fd: FormData): Promise<Estado>
   if (!data?.length) return { error: "No tienes permiso para eliminar este edificio." };
   redirect(`/panel?ok=${encodeURIComponent(`Edificio "${edificio.nombre}" eliminado.`)}`);
 }
+
+// ---------- Ejecución mensual del presupuesto ----------
+type LineaInforme = { partida_id: string | null; concepto: string; presupuestado: number; real: number; nota: string };
+
+export async function guardarInforme(_: Estado, fd: FormData): Promise<Estado> {
+  const perfil = await staff();
+  const edificio_id = txt(fd, "edificio_id");
+  const mes = txt(fd, "mes");
+  if (!/^\d{4}-\d{2}$/.test(mes)) return { error: "Mes no válido." };
+
+  let lineas: LineaInforme[];
+  try {
+    lineas = JSON.parse(txt(fd, "lineas"));
+  } catch {
+    return { error: "No se pudieron leer las líneas del informe." };
+  }
+  const limpias: LineaInforme[] = [];
+  for (const l of lineas) {
+    const concepto = String(l.concepto ?? "").trim();
+    const real = aNumero(String(l.real ?? "")) ?? 0;
+    if (real < 0) return { error: `El monto de "${concepto}" no puede ser negativo.` };
+    if (!l.partida_id && !concepto) {
+      if (real > 0) return { error: "Escribe el concepto de cada gasto no presupuestado." };
+      continue; // fila vacía
+    }
+    limpias.push({
+      partida_id: l.partida_id || null,
+      concepto,
+      presupuestado: Number(l.presupuestado) || 0,
+      real,
+      nota: String(l.nota ?? "").trim(),
+    });
+  }
+
+  const supabase = await createClient();
+  const periodo = `${mes}-01`;
+  const { data: existente } = await supabase
+    .from("informes_mensuales")
+    .select("id, estado")
+    .eq("edificio_id", edificio_id)
+    .eq("periodo", periodo)
+    .maybeSingle();
+  if (existente?.estado === "cerrado") return { error: "El informe está cerrado. Reábrelo para modificarlo." };
+
+  let informeId = existente?.id;
+  if (informeId) {
+    const { error } = await supabase
+      .from("informes_mensuales")
+      .update({ notas: txt(fd, "notas") || null, actualizado_por: perfil.id, actualizado_en: new Date().toISOString() })
+      .eq("id", informeId);
+    if (error) return { error: error.message };
+  } else {
+    const { data, error } = await supabase
+      .from("informes_mensuales")
+      .insert({ empresa_id: perfil.empresa_id, edificio_id, periodo, notas: txt(fd, "notas") || null, actualizado_por: perfil.id })
+      .select("id")
+      .single();
+    if (error) return { error: error.message };
+    informeId = data.id;
+  }
+
+  const { error: errDel } = await supabase.from("informe_lineas").delete().eq("informe_id", informeId);
+  if (errDel) return { error: errDel.message };
+  if (limpias.length) {
+    const { error } = await supabase
+      .from("informe_lineas")
+      .insert(limpias.map((l) => ({ ...l, informe_id: informeId, nota: l.nota || null })));
+    if (error) return { error: error.message };
+  }
+  redirect(`/panel/edificios/${edificio_id}/ejecucion?mes=${mes}&ok=${encodeURIComponent("Informe guardado.")}`);
+}
+
+export async function cambiarEstadoInforme(fd: FormData) {
+  await staff();
+  const supabase = await createClient();
+  const estado = txt(fd, "estado") === "cerrado" ? "cerrado" : "borrador";
+  await supabase.from("informes_mensuales").update({ estado }).eq("id", txt(fd, "informe_id"));
+  redirect(
+    `/panel/edificios/${txt(fd, "edificio_id")}/ejecucion?mes=${txt(fd, "mes")}&ok=${encodeURIComponent(
+      estado === "cerrado" ? "Informe cerrado." : "Informe reabierto para edición."
+    )}`
+  );
+}
