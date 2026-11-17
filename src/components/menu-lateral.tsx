@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconoEdificio } from "./iconos";
+import { IconoEdificio, IconoPersona } from "./iconos";
 
 const IconoUsuarios = () => (
   <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true">
@@ -17,7 +17,10 @@ export function MenuLateral({ mostrarUsuarios }: { mostrarUsuarios: boolean }) {
   const items = [
     { href: "/panel", texto: "Edificios", Icono: IconoEdificio, activo: ruta === "/panel" || ruta.startsWith("/panel/edificios") },
     ...(mostrarUsuarios
-      ? [{ href: "/panel/usuarios", texto: "Usuarios", Icono: IconoUsuarios, activo: ruta.startsWith("/panel/usuarios") }]
+      ? [
+          { href: "/panel/personal", texto: "Personal", Icono: IconoPersona, activo: ruta.startsWith("/panel/personal") },
+          { href: "/panel/usuarios", texto: "Usuarios", Icono: IconoUsuarios, activo: ruta.startsWith("/panel/usuarios") },
+        ]
       : []),
   ];
   return (
