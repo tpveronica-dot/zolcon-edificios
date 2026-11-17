@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getPerfil, esStaff } from "@/lib/auth";
+import { getPerfil, esStaff, esAdminEmpresa } from "@/lib/auth";
 import { parsearCsv, aNumero } from "@/lib/csv";
 
 export type Estado = { error?: string; ok?: string };
@@ -160,7 +160,6 @@ export async function crearUnidad(_: Estado, fd: FormData): Promise<Estado> {
     codigo,
     tipo: (TIPOS as readonly string[]).includes(tipo) ? tipo : "departamento",
     area_m2: aNumero(txt(fd, "area_m2")),
-    porcentaje_participacion: aNumero(txt(fd, "porcentaje")) ?? 0,
     propietario_id,
   });
   if (error) {
@@ -208,6 +207,7 @@ export async function importarUnidades(_: Estado, fd: FormData): Promise<Estado>
 
   const errores: string[] = [];
   let importadas = 0;
+  const conPorcentaje = "porcentaje" in filas[0]; // columna opcional (reparto por % libre)
 
   for (const [i, f] of filas.entries()) {
     const n = i + 2; // fila en Excel (con cabecera)
@@ -245,7 +245,7 @@ export async function importarUnidades(_: Estado, fd: FormData): Promise<Estado>
         codigo,
         tipo: (TIPOS as readonly string[]).includes(tipo) ? tipo : "departamento",
         area_m2: aNumero(f.area_m2),
-        porcentaje_participacion: aNumero(f.porcentaje) ?? 0,
+        ...(conPorcentaje ? { porcentaje_participacion: aNumero(f.porcentaje) ?? 0 } : {}),
         propietario_id,
       },
       { onConflict: "edificio_id,codigo" }
@@ -398,7 +398,6 @@ export async function actualizarUnidad(_: Estado, fd: FormData): Promise<Estado>
       codigo,
       tipo: (TIPOS as readonly string[]).includes(tipo) ? tipo : "departamento",
       area_m2: aNumero(txt(fd, "area_m2")),
-      porcentaje_participacion: aNumero(txt(fd, "porcentaje")) ?? 0,
     })
     .eq("id", txt(fd, "unidad_id"));
   if (error) return { error: error.code === "23505" ? `Ya existe otra unidad con el código ${codigo}.` : error.message };
@@ -573,5 +572,47 @@ export async function cambiarEstadoInforme(fd: FormData) {
     `/panel/edificios/${txt(fd, "edificio_id")}/ejecucion?mes=${txt(fd, "mes")}&ok=${encodeURIComponent(
       estado === "cerrado" ? "Informe cerrado." : "Informe reabierto para edición."
     )}`
+  );
+}
+
+// ---------- Distribución de la cuota ----------
+export async function guardarDistribucion(_: Estado, fd: FormData): Promise<Estado> {
+  const perfil = await getPerfil();
+  if (!esAdminEmpresa(perfil)) return { error: "Solo la administradora de la empresa puede cambiar el reparto." };
+  const edificio_id = txt(fd, "edificio_id");
+  const metodo = txt(fd, "metodo");
+  if (!["metraje", "igual", "libre"].includes(metodo)) return { error: "Elige una forma de reparto." };
+  const supabase = await createClient();
+
+  if (metodo === "libre") {
+    let porcentajes: Record<string, string>;
+    try {
+      porcentajes = JSON.parse(txt(fd, "porcentajes"));
+    } catch {
+      return { error: "No se pudieron leer los porcentajes." };
+    }
+    const valores = Object.entries(porcentajes).map(([id, v]) => [id, aNumero(v) ?? 0] as const);
+    if (valores.some(([, v]) => v < 0)) return { error: "Ningún porcentaje puede ser negativo." };
+    const suma = valores.reduce((s, [, v]) => s + v, 0);
+    if (Math.abs(suma - 100) > 0.01) return { error: `Los porcentajes suman ${suma.toFixed(2)} %; deben sumar 100 %.` };
+    for (const [id, v] of valores) {
+      const { error } = await supabase
+        .from("unidades")
+        .update({ porcentaje_participacion: v })
+        .eq("id", id)
+        .eq("edificio_id", edificio_id);
+      if (error) return { error: error.message };
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("edificios")
+    .update({ metodo_distribucion: metodo })
+    .eq("id", edificio_id)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "No tienes permiso para cambiar este edificio." };
+  redirect(
+    `/panel/edificios/${edificio_id}/cuotas?mes=${txt(fd, "mes")}&ok=${encodeURIComponent("Forma de reparto guardada.")}#distribucion`
   );
 }

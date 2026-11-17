@@ -7,6 +7,8 @@ import { FormAccion, Campo, Selector, Tarjeta } from "@/components/form-accion";
 import { soles, nombreMes, hoyLima, fechaCorta } from "@/lib/formato";
 import { Encabezado, Indicador } from "../encabezado";
 import { EstadoCuota } from "@/components/estado-cuota";
+import { Distribucion } from "./distribucion";
+import { NOMBRE_METODO, type Metodo } from "@/lib/distribucion";
 import { anularCuota, eliminarPago, generarCuotas, registrarPago } from "../../../actions";
 
 export default function CuotasPage({ params, searchParams }: PageProps<"/panel/edificios/[id]/cuotas">) {
@@ -50,7 +52,7 @@ async function Contenido({
   const supabase = await createClient();
 
   const [{ data: edificio }, { data: cuotas }, { data: cuentas }] = await Promise.all([
-    supabase.from("edificios").select("nombre, direccion, distrito, dia_vencimiento").eq("id", id).single(),
+    supabase.from("edificios").select("nombre, direccion, distrito, dia_vencimiento, metodo_distribucion").eq("id", id).single(),
     supabase
       .from("cuotas")
       .select("id, unidad_id, monto, vencimiento, estado, unidades(codigo, personas(nombres)), pagos(id, monto, fecha, medio, operacion, validado)")
@@ -58,6 +60,15 @@ async function Contenido({
       .eq("periodo", `${mes}-01`),
     supabase.from("estado_cuenta").select("unidad_id, deuda, cuotas_vencidas").eq("edificio_id", id),
   ]);
+  const [{ data: unidadesEd }, { data: presupuestoAnio }] = await Promise.all([
+    supabase.from("unidades").select("id, codigo, tipo, area_m2, porcentaje_participacion").eq("edificio_id", id),
+    supabase.from("presupuestos").select("partidas(monto_mensual)").eq("edificio_id", id).eq("anio", Number(mes.slice(0, 4))).maybeSingle(),
+  ]);
+  const totalMensual = (presupuestoAnio?.partidas ?? []).reduce((s: number, p: { monto_mensual: number }) => s + Number(p.monto_mensual), 0);
+  const unidadesReparto = [...(unidadesEd ?? [])]
+    .sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }))
+    .map((u) => ({ id: u.id, codigo: u.codigo, tipo: u.tipo, area: u.area_m2 == null ? null : Number(u.area_m2), pct: Number(u.porcentaje_participacion) }));
+  const mensaje = typeof sp.ok === "string" ? sp.ok : null;
   if (!edificio) notFound();
 
   const staff = esStaff(perfil);
@@ -84,6 +95,8 @@ async function Contenido({
     <div className="space-y-6">
       <Encabezado id={id} edificio={edificio} activa="cuotas" gestionar={esAdminEmpresa(perfil)} />
 
+      {mensaje && <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">✓ {mensaje}</p>}
+
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <Link href={`?mes=${mover(mes, -1)}`} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 hover:bg-slate-100">←</Link>
         <span className="font-display text-xl font-bold capitalize text-slate-900">{nombreMes(mes)}</span>
@@ -101,9 +114,28 @@ async function Contenido({
       </div>
 
       {staff && (
+        <section id="distribucion" className="scroll-mt-6">
+          <Tarjeta titulo="Distribución de la cuota">
+            {unidadesReparto.length === 0 ? (
+              <p className="text-sm text-slate-500">Primero registra las unidades del edificio.</p>
+            ) : (
+              <Distribucion
+                edificioId={id}
+                mes={mes}
+                metodoActual={(edificio.metodo_distribucion ?? "metraje") as Metodo}
+                unidades={unidadesReparto}
+                totalMensual={totalMensual}
+                editable={esAdminEmpresa(perfil)}
+              />
+            )}
+          </Tarjeta>
+        </section>
+      )}
+
+      {staff && (
         <Tarjeta titulo="Generar cuotas del mes">
           <p className="mb-4 text-sm text-slate-600">
-            Calcula la cuota de cada unidad: <strong>total mensual del presupuesto × % de participación</strong>.
+            Calcula la cuota de cada unidad repartiendo el total mensual del presupuesto <strong>{NOMBRE_METODO[edificio.metodo_distribucion]?.toLowerCase() ?? "por metraje"}</strong>.
             Vence el día {edificio.dia_vencimiento}. Si ya existen cuotas de este mes, no se duplican.
           </p>
           <FormAccion action={generarCuotas} boton={`Generar cuotas de ${nombreMes(mes)}`} className="space-y-3">

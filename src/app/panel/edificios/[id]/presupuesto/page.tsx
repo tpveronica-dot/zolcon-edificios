@@ -6,6 +6,7 @@ import { getPerfil, esStaff, esAdminEmpresa } from "@/lib/auth";
 import { FormAccion, Campo, Tarjeta } from "@/components/form-accion";
 import { soles, hoyLima } from "@/lib/formato";
 import { Encabezado, Indicador } from "../encabezado";
+import { NOMBRE_METODO } from "@/lib/distribucion";
 import { agregarPartida, aprobarPresupuesto, crearPresupuesto, eliminarPartida } from "../../../actions";
 
 export default function PresupuestoPage({ params, searchParams }: PageProps<"/panel/edificios/[id]/presupuesto">) {
@@ -31,7 +32,7 @@ async function Contenido({
   const supabase = await createClient();
 
   const [{ data: edificio }, { data: presupuesto }] = await Promise.all([
-    supabase.from("edificios").select("nombre, direccion, distrito, dia_vencimiento").eq("id", id).single(),
+    supabase.from("edificios").select("nombre, direccion, distrito, dia_vencimiento, metodo_distribucion").eq("id", id).single(),
     supabase
       .from("presupuestos")
       .select("id, anio, aprobado, partidas(id, nombre, monto_mensual, es_fondo_reserva)")
@@ -97,6 +98,14 @@ async function Contenido({
             <Indicador titulo="Total anual" valor={soles(mensual * 12)} />
             <Indicador titulo="Fondo de reserva mensual" valor={soles(reserva)} nota={mensual ? `${((reserva / mensual) * 100).toFixed(1)} % del total` : undefined} />
           </div>
+
+          <p className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+            Reparto de la cuota mensual:
+            <strong className="text-slate-900">{NOMBRE_METODO[edificio.metodo_distribucion] ?? "Por metraje"}</strong>
+            <Link href={`/panel/edificios/${id}/cuotas#distribucion`} className="font-semibold text-petroleo-700 hover:underline">
+              Ver o cambiar →
+            </Link>
+          </p>
 
           <Tarjeta titulo="Partidas del presupuesto">
             {partidas.length === 0 ? (

@@ -54,8 +54,7 @@ async function Contenido({ params }: { params: Promise<{ id: string }> }) {
             <input type="hidden" name="edificio_id" value={id} />
             <Campo name="codigo" label="Código (ej. 301)" required />
             <Selector name="tipo" label="Tipo" opciones={TIPOS} />
-            <Campo name="area_m2" label="Área m²" inputMode="decimal" />
-            <Campo name="porcentaje" label="% participación" inputMode="decimal" />
+            <Campo name="area_m2" label="Área m²" inputMode="decimal" className="sm:col-span-2" />
             <Campo name="propietario" label="Propietario" className="sm:col-span-2" />
             <Campo name="documento" label="DNI / RUC" />
             <Campo name="telefono" label="Celular" />

@@ -7,6 +7,7 @@ import { Tarjeta } from "@/components/form-accion";
 import { Encabezado, Indicador } from "./encabezado";
 import { eliminarUnidad } from "../../actions";
 import { NOMBRE_CARGO_JUNTA } from "@/lib/junta";
+import { NOMBRE_METODO } from "@/lib/distribucion";
 
 export default function EdificioPage({ params, searchParams }: PageProps<"/panel/edificios/[id]">) {
   return (
@@ -39,10 +40,10 @@ async function Contenido({
   const supabase = await createClient();
 
   const [{ data: edificio }, { data: unidades }] = await Promise.all([
-    supabase.from("edificios").select("id, nombre, direccion, distrito, dia_vencimiento").eq("id", id).single(),
+    supabase.from("edificios").select("id, nombre, direccion, distrito, dia_vencimiento, metodo_distribucion").eq("id", id).single(),
     supabase
       .from("unidades")
-      .select("id, codigo, tipo, area_m2, porcentaje_participacion, propietario_id, personas(nombres, documento, email, telefono)")
+      .select("id, codigo, tipo, area_m2, propietario_id, personas(nombres, documento, email, telefono)")
       .eq("edificio_id", id),
   ]);
   if (!edificio) notFound();
@@ -51,8 +52,9 @@ async function Contenido({
 
   const staff = esStaff(perfil);
   const lista = [...(unidades ?? [])].sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
-  const sumaPct = lista.reduce((s, u) => s + Number(u.porcentaje_participacion), 0);
-  const cuadra = Math.abs(sumaPct - 100) < 0.01;
+  const areaTotal = lista.reduce((s, u) => s + Number(u.area_m2 ?? 0), 0);
+  const sinArea = lista.filter((u) => !(Number(u.area_m2) > 0)).length;
+  const porMetraje = edificio.metodo_distribucion === "metraje";
   const nPropietarios = new Set(
     lista.map((u) => (u.personas as unknown as Persona | null)?.nombres).filter(Boolean)
   ).size;
@@ -69,10 +71,14 @@ async function Contenido({
         <Indicador titulo="Unidades" valor={String(lista.length)} />
         <Indicador titulo="Propietarios" valor={String(nPropietarios)} />
         <Indicador
-          titulo="Suma de % de participación"
-          valor={`${sumaPct.toFixed(2)} %`}
-          tono={lista.length > 0 && !cuadra ? "alerta" : "normal"}
-          nota={lista.length > 0 && !cuadra ? "Debe sumar 100 % para calcular bien las cuotas" : undefined}
+          titulo="Área total"
+          valor={`${areaTotal.toLocaleString("es-PE", { maximumFractionDigits: 2 })} m²`}
+          tono={porMetraje && sinArea > 0 ? "alerta" : "normal"}
+          nota={
+            porMetraje && sinArea > 0
+              ? `${sinArea} unidades sin área: necesaria para repartir por metraje`
+              : `Reparto de la cuota: ${NOMBRE_METODO[edificio.metodo_distribucion] ?? "—"}`
+          }
         />
       </div>
 
@@ -99,7 +105,6 @@ async function Contenido({
                   <th className="py-2 pr-4">Código</th>
                   <th className="py-2 pr-4">Tipo</th>
                   <th className="py-2 pr-4 text-right">Área m²</th>
-                  <th className="py-2 pr-4 text-right">% Part.</th>
                   <th className="py-2 pr-4">Propietario</th>
                   <th className="py-2 pr-4">Contacto</th>
                   {staff && <th />}
@@ -113,7 +118,6 @@ async function Contenido({
                       <td className="py-2 pr-4 font-medium text-slate-900">{u.codigo}</td>
                       <td className="py-2 pr-4 text-slate-600">{NOMBRE_TIPO[u.tipo] ?? u.tipo}</td>
                       <td className="py-2 pr-4 text-right tabular-nums">{u.area_m2 ?? "—"}</td>
-                      <td className="py-2 pr-4 text-right tabular-nums">{Number(u.porcentaje_participacion).toFixed(4)}</td>
                       <td className="py-2 pr-4">
                         {p?.nombres ?? <span className="text-slate-400">Sin asignar</span>}
                         {u.propietario_id && cargoJunta.get(u.propietario_id) && (

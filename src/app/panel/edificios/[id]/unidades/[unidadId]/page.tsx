@@ -33,7 +33,7 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
 
   const { data: unidad } = await supabase
     .from("unidades")
-    .select("id, codigo, tipo, area_m2, porcentaje_participacion, propietario_id, edificios(nombre), personas(id, nombres, documento, email, telefono)")
+    .select("id, codigo, tipo, area_m2, propietario_id, edificios(nombre), personas(id, nombres, documento, email, telefono)")
     .eq("id", unidadId)
     .eq("edificio_id", id)
     .single();
@@ -112,11 +112,10 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
             <input type="hidden" name="edificio_id" value={id} />
             <Campo name="codigo" label="Código" defaultValue={unidad.codigo} required />
             <Selector name="tipo" label="Tipo" opciones={TIPOS} defaultValue={unidad.tipo} />
-            <Campo name="area_m2" label="Área m²" inputMode="decimal" defaultValue={unidad.area_m2 ?? ""} />
-            <Campo name="porcentaje" label="% participación" inputMode="decimal" defaultValue={String(unidad.porcentaje_participacion)} />
+            <Campo name="area_m2" label="Área m²" inputMode="decimal" defaultValue={unidad.area_m2 ?? ""} className="sm:col-span-2" />
           </FormAccion>
           <p className="mt-3 text-xs text-slate-500">
-            Si cambias el % de participación, afecta las cuotas que se generen desde ahora; las ya emitidas no cambian.
+            Si cambias el área, afecta las cuotas que se generen desde ahora (cuando el reparto es por metraje).
           </p>
         </Tarjeta>
       </div>
