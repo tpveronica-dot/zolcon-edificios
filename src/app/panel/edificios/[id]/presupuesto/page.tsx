@@ -27,6 +27,7 @@ async function Contenido({
   const sp = await searchParams;
   const perfil = await getPerfil();
   const anio = Number(sp.anio) || Number(hoyLima().slice(0, 4));
+  const mensaje = typeof sp.ok === "string" ? sp.ok : null;
   const supabase = await createClient();
 
   const [{ data: edificio }, { data: presupuesto }] = await Promise.all([
@@ -54,6 +55,10 @@ async function Contenido({
   return (
     <div className="space-y-6">
       <Encabezado id={id} edificio={edificio} activa="presupuesto" gestionar={esAdminEmpresa(perfil)} />
+
+      {mensaje && (
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">✓ {mensaje}</p>
+      )}
 
       <div className="flex items-center gap-3 text-sm">
         <Link href={`?anio=${anio - 1}`} className="inline-flex min-h-10 items-center rounded-xl border border-slate-200 bg-white px-3 hover:bg-slate-100">
@@ -122,8 +127,14 @@ async function Contenido({
                         <td className="py-2 pr-4 text-right tabular-nums">{soles(g)}</td>
                         <td className={`py-2 pr-4 text-right tabular-nums ${pct > 100 ? "text-red-600" : "text-slate-600"}`}>{pct.toFixed(0)} %</td>
                         {staff && (
-                          <td className="py-2 text-right">
-                            <form action={eliminarPartida}>
+                          <td className="whitespace-nowrap py-2 text-right">
+                            <Link
+                              href={`/panel/edificios/${id}/presupuesto/partidas/${p.id}`}
+                              className="mr-3 text-xs font-semibold text-petroleo-700 hover:underline"
+                            >
+                              Editar
+                            </Link>
+                            <form action={eliminarPartida} className="inline">
                               <input type="hidden" name="id" value={p.id} />
                               <button className="text-xs text-slate-400 hover:text-red-600">Eliminar</button>
                             </form>

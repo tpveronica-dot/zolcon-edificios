@@ -293,6 +293,26 @@ export async function agregarPartida(_: Estado, fd: FormData): Promise<Estado> {
   return { ok: `Partida "${nombre}" agregada.` };
 }
 
+export async function actualizarPartida(_: Estado, fd: FormData): Promise<Estado> {
+  await staff();
+  const nombre = txt(fd, "nombre");
+  const monto = aNumero(txt(fd, "monto_mensual"));
+  if (!nombre) return { error: "Escribe el nombre de la partida." };
+  if (monto == null || monto < 0) return { error: "Escribe un monto mensual válido." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("partidas")
+    .update({ nombre, monto_mensual: monto, es_fondo_reserva: fd.get("es_fondo_reserva") === "on" })
+    .eq("id", txt(fd, "partida_id"))
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "No tienes permiso para editar esta partida." };
+  redirect(
+    `/panel/edificios/${txt(fd, "edificio_id")}/presupuesto?anio=${txt(fd, "anio")}&ok=${encodeURIComponent(`Partida "${nombre}" actualizada.`)}`
+  );
+}
+
 export async function eliminarPartida(fd: FormData) {
   await staff();
   const supabase = await createClient();
