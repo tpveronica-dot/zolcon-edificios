@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getPerfil, esStaff } from "@/lib/auth";
 import { FormAccion, Campo, Selector, Tarjeta } from "@/components/form-accion";
 import { crearUnidad, importarUnidades } from "@/app/panel/actions";
+import { OPCIONES_JUNTA } from "@/lib/junta";
 
 export default function NuevaUnidadPage({ params }: PageProps<"/panel/edificios/[id]/unidades/nueva">) {
   return (
@@ -59,6 +60,9 @@ async function Contenido({ params }: { params: Promise<{ id: string }> }) {
             <Campo name="documento" label="DNI / RUC" />
             <Campo name="telefono" label="Celular" />
             <Campo name="email" label="Correo" type="email" className="sm:col-span-2" />
+            <div className="sm:col-span-2">
+              <Selector name="cargo_junta" label="Cargo en la junta directiva (opcional)" opciones={OPCIONES_JUNTA} defaultValue="" />
+            </div>
           </FormAccion>
         </Tarjeta>
 

@@ -6,6 +6,7 @@ import { getPerfil, esStaff, esAdminEmpresa } from "@/lib/auth";
 import { Tarjeta } from "@/components/form-accion";
 import { Encabezado, Indicador } from "./encabezado";
 import { eliminarUnidad } from "../../actions";
+import { NOMBRE_CARGO_JUNTA } from "@/lib/junta";
 
 export default function EdificioPage({ params, searchParams }: PageProps<"/panel/edificios/[id]">) {
   return (
@@ -41,10 +42,12 @@ async function Contenido({
     supabase.from("edificios").select("id, nombre, direccion, distrito, dia_vencimiento").eq("id", id).single(),
     supabase
       .from("unidades")
-      .select("id, codigo, tipo, area_m2, porcentaje_participacion, personas(nombres, documento, email, telefono)")
+      .select("id, codigo, tipo, area_m2, porcentaje_participacion, propietario_id, personas(nombres, documento, email, telefono)")
       .eq("edificio_id", id),
   ]);
   if (!edificio) notFound();
+  const { data: junta } = await supabase.from("junta_directiva").select("persona_id, cargo").eq("edificio_id", id);
+  const cargoJunta = new Map((junta ?? []).map((j) => [j.persona_id, j.cargo]));
 
   const staff = esStaff(perfil);
   const lista = [...(unidades ?? [])].sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
@@ -113,6 +116,11 @@ async function Contenido({
                       <td className="py-2 pr-4 text-right tabular-nums">{Number(u.porcentaje_participacion).toFixed(4)}</td>
                       <td className="py-2 pr-4">
                         {p?.nombres ?? <span className="text-slate-400">Sin asignar</span>}
+                        {u.propietario_id && cargoJunta.get(u.propietario_id) && (
+                          <span className="ml-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                            {NOMBRE_CARGO_JUNTA[cargoJunta.get(u.propietario_id)!]}
+                          </span>
+                        )}
                         {p?.documento && <span className="block text-xs text-slate-500">{p.documento}</span>}
                       </td>
                       <td className="py-2 pr-4 text-slate-600">

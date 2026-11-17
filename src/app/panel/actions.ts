@@ -94,6 +94,39 @@ async function asignarSupervisor(
   return null;
 }
 
+// ---------- Junta directiva (opcional, por edificio) ----------
+const CARGOS_JUNTA: Record<string, string> = { presidente: "presidente", tesorero: "tesorero", miembro: "miembro de la junta" };
+
+// cargo vacío = no es parte de la junta
+async function guardarCargoJunta(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  edificioId: string,
+  personaId: string,
+  cargo: string
+): Promise<string | null> {
+  if (!cargo || !(cargo in CARGOS_JUNTA)) {
+    const { error } = await supabase.from("junta_directiva").delete().eq("edificio_id", edificioId).eq("persona_id", personaId);
+    return error?.message ?? null;
+  }
+  if (cargo !== "miembro") {
+    const { data: ocupado } = await supabase
+      .from("junta_directiva")
+      .select("persona_id, personas(nombres)")
+      .eq("edificio_id", edificioId)
+      .eq("cargo", cargo)
+      .neq("persona_id", personaId)
+      .maybeSingle();
+    if (ocupado) {
+      const nombre = (ocupado.personas as unknown as { nombres: string } | null)?.nombres ?? "otra persona";
+      return `Este edificio ya tiene ${CARGOS_JUNTA[cargo]}: ${nombre}. Cámbiale el cargo primero.`;
+    }
+  }
+  const { error } = await supabase
+    .from("junta_directiva")
+    .upsert({ edificio_id: edificioId, persona_id: personaId, cargo }, { onConflict: "edificio_id,persona_id" });
+  return error?.message ?? null;
+}
+
 // ---------- Unidades ----------
 export async function crearUnidad(_: Estado, fd: FormData): Promise<Estado> {
   const perfil = await staff();
@@ -132,6 +165,10 @@ export async function crearUnidad(_: Estado, fd: FormData): Promise<Estado> {
   });
   if (error) {
     return { error: error.code === "23505" ? `Ya existe la unidad ${codigo}.` : error.message };
+  }
+  if (propietario_id && txt(fd, "cargo_junta")) {
+    const errJunta = await guardarCargoJunta(supabase, edificio_id, propietario_id, txt(fd, "cargo_junta"));
+    if (errJunta) volverALista(edificio_id, `Unidad ${codigo} agregada, pero no se asignó el cargo en la junta: ${errJunta}`);
   }
   volverALista(edificio_id, `Unidad ${codigo} agregada.`);
 }
@@ -363,6 +400,8 @@ export async function actualizarPropietario(_: Estado, fd: FormData): Promise<Es
     })
     .eq("id", txt(fd, "persona_id"));
   if (error) return { error: error.message };
+  const errJunta = await guardarCargoJunta(supabase, txt(fd, "edificio_id"), txt(fd, "persona_id"), txt(fd, "cargo_junta"));
+  if (errJunta) return { error: errJunta };
   volverALista(txt(fd, "edificio_id"), `Datos de ${nombres} actualizados.`);
 }
 

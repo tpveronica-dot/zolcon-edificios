@@ -6,6 +6,7 @@ import { getPerfil, esStaff } from "@/lib/auth";
 import { FormAccion, Campo, Selector, Tarjeta } from "@/components/form-accion";
 import { actualizarPropietario, actualizarUnidad } from "@/app/panel/actions";
 import { CambiarPropietario } from "./cambiar-propietario";
+import { OPCIONES_JUNTA } from "@/lib/junta";
 
 export default function EditarUnidadPage({ params }: PageProps<"/panel/edificios/[id]/unidades/[unidadId]">) {
   return (
@@ -48,6 +49,9 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
       : Promise.resolve({ data: [] as { codigo: string; edificios: unknown }[] }),
   ]);
   const nUnidades = otrasUnidades?.length ?? 0;
+  const { data: junta } = propietario
+    ? await supabase.from("junta_directiva").select("cargo").eq("edificio_id", id).eq("persona_id", propietario.id).maybeSingle()
+    : { data: null };
 
   return (
     <div className="space-y-6">
@@ -86,6 +90,15 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
                 <Campo name="documento" label="DNI / RUC" defaultValue={propietario.documento ?? ""} />
                 <Campo name="telefono" label="Celular" defaultValue={propietario.telefono ?? ""} />
                 <Campo name="email" label="Correo" type="email" defaultValue={propietario.email ?? ""} className="sm:col-span-2" />
+                <div className="sm:col-span-2">
+                  <Selector
+                    name="cargo_junta"
+                    label="Cargo en la junta directiva (opcional)"
+                    opciones={OPCIONES_JUNTA}
+                    defaultValue={junta?.cargo ?? ""}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Aplica solo a este edificio.</p>
+                </div>
               </FormAccion>
             </>
           ) : (
