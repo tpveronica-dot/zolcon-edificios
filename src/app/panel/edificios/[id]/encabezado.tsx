@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-type Pestana = "unidades" | "presupuesto" | "ejecucion" | "cuotas";
+type Pestana = "unidades" | "presupuesto" | "ejecucion" | "cuotas" | "pagos";
 
 export function Encabezado({
   id,
@@ -17,7 +17,8 @@ export function Encabezado({
     ["unidades", "Unidades", `/panel/edificios/${id}`],
     ["presupuesto", "Presupuesto", `/panel/edificios/${id}/presupuesto`],
     ["ejecucion", "Ejecución mensual", `/panel/edificios/${id}/ejecucion`],
-    ["cuotas", "Cuotas y pagos", `/panel/edificios/${id}/cuotas`],
+    ["cuotas", "Cuotas", `/panel/edificios/${id}/cuotas`],
+    ["pagos", "Pagos", `/panel/edificios/${id}/pagos`],
   ];
   return (
     <div>

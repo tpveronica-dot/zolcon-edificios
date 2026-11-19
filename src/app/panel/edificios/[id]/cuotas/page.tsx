@@ -3,13 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPerfil, esStaff, esAdminEmpresa } from "@/lib/auth";
-import { FormAccion, Campo, Selector, Tarjeta } from "@/components/form-accion";
-import { soles, nombreMes, hoyLima, fechaCorta } from "@/lib/formato";
-import { Encabezado, Indicador } from "../encabezado";
+import { FormAccion, Tarjeta } from "@/components/form-accion";
+import { soles, nombreMes, hoyLima } from "@/lib/formato";
+import { Encabezado } from "../encabezado";
 import { EstadoCuota } from "@/components/estado-cuota";
 import { Distribucion } from "./distribucion";
 import { NOMBRE_METODO, type Metodo } from "@/lib/distribucion";
-import { anularCuota, eliminarPago, generarCuotas, registrarPago } from "../../../actions";
+import { generarCuotas } from "../../../actions";
 
 export default function CuotasPage({ params, searchParams }: PageProps<"/panel/edificios/[id]/cuotas">) {
   return (
@@ -19,23 +19,26 @@ export default function CuotasPage({ params, searchParams }: PageProps<"/panel/e
   );
 }
 
-const MEDIOS: [string, string][] = [
-  ["transferencia", "Transferencia"],
-  ["yape", "Yape"],
-  ["plin", "Plin"],
-  ["deposito", "Depósito"],
-  ["efectivo", "Efectivo"],
-  ["otro", "Otro"],
-];
-
-
 function mover(ym: string, delta: number) {
   const [a, m] = ym.split("-").map(Number);
   const d = new Date(Date.UTC(a, m - 1 + delta, 1));
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-type Pago = { id: string; monto: number; fecha: string; medio: string; operacion: string | null; validado: boolean };
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+// Reparte la cuota de una unidad entre las partidas, en proporción a cada partida;
+// los céntimos de redondeo se ajustan en la partida mayor para que sume exacto.
+function repartirEnPartidas(cuota: number, partidas: { id: string; nombre: string; monto: number }[], total: number) {
+  if (total <= 0) return [];
+  const lineas = partidas.map((p) => ({ ...p, importe: r2((p.monto * cuota) / total) }));
+  const dif = r2(cuota - lineas.reduce((s, l) => s + l.importe, 0));
+  if (dif !== 0 && lineas.length) {
+    const mayor = lineas.reduce((a, b) => (b.importe > a.importe ? b : a));
+    mayor.importe = r2(mayor.importe + dif);
+  }
+  return lineas;
+}
 
 async function Contenido({
   params,
@@ -49,47 +52,52 @@ async function Contenido({
   const perfil = await getPerfil();
   const hoy = hoyLima();
   const mes = typeof sp.mes === "string" && /^\d{4}-\d{2}$/.test(sp.mes) ? sp.mes : hoy.slice(0, 7);
+  const mensaje = typeof sp.ok === "string" ? sp.ok : null;
+  const anio = Number(mes.slice(0, 4));
   const supabase = await createClient();
 
-  const [{ data: edificio }, { data: cuotas }, { data: cuentas }] = await Promise.all([
+  const [{ data: edificio }, { data: cuotas }, { data: unidadesEd }, { data: presupuesto }] = await Promise.all([
     supabase.from("edificios").select("nombre, direccion, distrito, dia_vencimiento, metodo_distribucion").eq("id", id).single(),
     supabase
       .from("cuotas")
-      .select("id, unidad_id, monto, vencimiento, estado, unidades(codigo, personas(nombres)), pagos(id, monto, fecha, medio, operacion, validado)")
+      .select("id, monto, vencimiento, estado, unidades(codigo, area_m2, personas(nombres))")
       .eq("edificio_id", id)
       .eq("periodo", `${mes}-01`),
-    supabase.from("estado_cuenta").select("unidad_id, deuda, cuotas_vencidas").eq("edificio_id", id),
-  ]);
-  const [{ data: unidadesEd }, { data: presupuestoAnio }] = await Promise.all([
     supabase.from("unidades").select("id, codigo, tipo, area_m2, porcentaje_participacion").eq("edificio_id", id),
-    supabase.from("presupuestos").select("partidas(monto_mensual)").eq("edificio_id", id).eq("anio", Number(mes.slice(0, 4))).maybeSingle(),
+    supabase.from("presupuestos").select("partidas(id, nombre, monto_mensual)").eq("edificio_id", id).eq("anio", anio).maybeSingle(),
   ]);
-  const totalMensual = (presupuestoAnio?.partidas ?? []).reduce((s: number, p: { monto_mensual: number }) => s + Number(p.monto_mensual), 0);
-  const unidadesReparto = [...(unidadesEd ?? [])]
-    .sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }))
-    .map((u) => ({ id: u.id, codigo: u.codigo, tipo: u.tipo, area: u.area_m2 == null ? null : Number(u.area_m2), pct: Number(u.porcentaje_participacion) }));
-  const mensaje = typeof sp.ok === "string" ? sp.ok : null;
   if (!edificio) notFound();
 
   const staff = esStaff(perfil);
-  const deudaUnidad = new Map((cuentas ?? []).map((c) => [c.unidad_id, { deuda: Number(c.deuda), vencidas: Number(c.cuotas_vencidas) }]));
+  const partidas = [...(presupuesto?.partidas ?? [])]
+    .map((p) => ({ id: p.id, nombre: p.nombre, monto: Number(p.monto_mensual) }))
+    .sort((a, b) => b.monto - a.monto);
+  const totalMensual = partidas.reduce((s, p) => s + p.monto, 0);
 
-  const filas = (cuotas ?? [])
+  const unidadesReparto = [...(unidadesEd ?? [])]
+    .sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }))
+    .map((u) => ({ id: u.id, codigo: u.codigo, tipo: u.tipo, area: u.area_m2 == null ? null : Number(u.area_m2), pct: Number(u.porcentaje_participacion) }));
+
+  const vecinos = (cuotas ?? [])
+    .filter((c) => c.estado !== "anulada")
     .map((c) => {
-      const u = c.unidades as unknown as { codigo: string; personas: { nombres: string } | null };
-      const pagos = (c.pagos as Pago[]).filter((p) => p.validado);
-      const pagado = pagos.reduce((s, p) => s + Number(p.monto), 0);
-      return { ...c, codigo: u.codigo, propietario: u.personas?.nombres ?? null, pagos, pagado, saldo: Math.max(Number(c.monto) - pagado, 0) };
+      const u = c.unidades as unknown as { codigo: string; area_m2: number | null; personas: { nombres: string } | null };
+      const monto = Number(c.monto);
+      return {
+        id: c.id,
+        codigo: u.codigo,
+        area: u.area_m2,
+        propietario: u.personas?.nombres ?? null,
+        monto,
+        estado: c.estado,
+        vencida: c.estado !== "pagada" && c.vencimiento < hoy,
+        participacion: totalMensual ? (monto / totalMensual) * 100 : 0,
+        lineas: repartirEnPartidas(monto, partidas, totalMensual),
+      };
     })
     .sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
-
-  const vigentes = filas.filter((f) => f.estado !== "anulada");
-  const emitido = vigentes.reduce((s, f) => s + Number(f.monto), 0);
-  const cobrado = vigentes.reduce((s, f) => s + f.pagado, 0);
-  const pendiente = emitido - cobrado;
-  const pctCobro = emitido ? (cobrado / emitido) * 100 : 0;
-  const deudaTotal = [...deudaUnidad.values()].reduce((s, d) => s + d.deuda, 0);
-  const morosos = [...deudaUnidad.values()].filter((d) => d.vencidas > 0).length;
+  const totalEmitido = vecinos.reduce((s, v) => s + v.monto, 0);
+  const metodo = (edificio.metodo_distribucion ?? "metraje") as Metodo;
 
   return (
     <div className="space-y-6">
@@ -98,31 +106,22 @@ async function Contenido({
       {mensaje && <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">✓ {mensaje}</p>}
 
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <Link href={`?mes=${mover(mes, -1)}`} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 hover:bg-slate-100">←</Link>
-        <span className="font-display text-xl font-bold capitalize text-slate-900">{nombreMes(mes)}</span>
-        <Link href={`?mes=${mover(mes, 1)}`} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 hover:bg-slate-100">→</Link>
-        {mes !== hoy.slice(0, 7) && (
-          <Link href="?" className="text-slate-500 hover:underline">Ir al mes actual</Link>
-        )}
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Indicador titulo="Emitido del mes" valor={soles(emitido)} nota={`${vigentes.length} cuotas`} />
-        <Indicador titulo="Cobrado del mes" valor={soles(cobrado)} tono="bien" nota={`${pctCobro.toFixed(0)} % de cobranza`} />
-        <Indicador titulo="Por cobrar del mes" valor={soles(pendiente)} tono={pendiente > 0 ? "alerta" : "normal"} />
-        <Indicador titulo="Deuda total del edificio" valor={soles(deudaTotal)} tono={deudaTotal > 0 ? "mal" : "bien"} nota={`${morosos} unidades con cuotas vencidas`} />
+        <Link href={`?mes=${mover(mes, -1)}`} aria-label="Mes anterior" className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 hover:bg-slate-100">←</Link>
+        <span className="font-display text-xl font-bold capitalize text-slate-900">Cuotas de {nombreMes(mes)}</span>
+        <Link href={`?mes=${mover(mes, 1)}`} aria-label="Mes siguiente" className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 hover:bg-slate-100">→</Link>
+        {mes !== hoy.slice(0, 7) && <Link href="?" className="text-slate-500 hover:underline">Ir al mes actual</Link>}
       </div>
 
       {staff && (
         <section id="distribucion" className="scroll-mt-6">
-          <Tarjeta titulo="Distribución de la cuota">
+          <Tarjeta titulo="1 · Distribución de la cuota">
             {unidadesReparto.length === 0 ? (
               <p className="text-sm text-slate-500">Primero registra las unidades del edificio.</p>
             ) : (
               <Distribucion
                 edificioId={id}
                 mes={mes}
-                metodoActual={(edificio.metodo_distribucion ?? "metraje") as Metodo}
+                metodoActual={metodo}
                 unidades={unidadesReparto}
                 totalMensual={totalMensual}
                 editable={esAdminEmpresa(perfil)}
@@ -133,95 +132,79 @@ async function Contenido({
       )}
 
       {staff && (
-        <Tarjeta titulo="Generar cuotas del mes">
+        <Tarjeta titulo="2 · Generar las cuotas del mes">
           <p className="mb-4 text-sm text-slate-600">
-            Calcula la cuota de cada unidad repartiendo el total mensual del presupuesto <strong>{NOMBRE_METODO[edificio.metodo_distribucion]?.toLowerCase() ?? "por metraje"}</strong>.
-            Vence el día {edificio.dia_vencimiento}. Si ya existen cuotas de este mes, no se duplican.
+            Reparte el total mensual del presupuesto ({soles(totalMensual)}){" "}
+            <strong>{NOMBRE_METODO[metodo]?.toLowerCase() ?? "por metraje"}</strong>. Vence el día {edificio.dia_vencimiento}.
+            Si ya existen cuotas de este mes, no se duplican.
           </p>
-          <FormAccion action={generarCuotas} boton={`Generar cuotas de ${nombreMes(mes)}`} className="space-y-3">
-            <input type="hidden" name="edificio_id" value={id} />
-            <input type="hidden" name="mes" value={mes} />
-          </FormAccion>
+          {vecinos.length > 0 ? (
+            <p className="text-sm font-semibold text-emerald-700">
+              ✓ Cuotas de {nombreMes(mes)} generadas: {vecinos.length} unidades · {soles(totalEmitido)}
+            </p>
+          ) : (
+            <FormAccion action={generarCuotas} boton={`Generar cuotas de ${nombreMes(mes)}`} className="space-y-3">
+              <input type="hidden" name="edificio_id" value={id} />
+              <input type="hidden" name="mes" value={mes} />
+            </FormAccion>
+          )}
         </Tarjeta>
       )}
 
-      <Tarjeta titulo={`Cuotas de ${nombreMes(mes)}`}>
-        {filas.length === 0 ? (
-          <p className="text-sm text-slate-500">No hay cuotas generadas para este mes.</p>
+      <Tarjeta titulo={`${staff ? "3 · " : ""}Balance del mes por vecino`}>
+        {vecinos.length === 0 ? (
+          <p className="text-sm text-slate-500">Aún no se generan las cuotas de {nombreMes(mes)}.</p>
+        ) : partidas.length === 0 ? (
+          <p className="text-sm text-slate-500">No hay partidas en el presupuesto {anio} para detallar la cuota.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
-                <tr>
-                  <th className="py-2 pr-4">Unidad</th>
-                  <th className="py-2 pr-4">Propietario</th>
-                  <th className="py-2 pr-4 text-right">Cuota</th>
-                  <th className="py-2 pr-4 text-right">Pagado</th>
-                  <th className="py-2 pr-4 text-right">Saldo</th>
-                  <th className="py-2 pr-4">Estado</th>
-                  <th className="py-2 pr-4 text-right">Deuda total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filas.map((f) => {
-                  const vencida = f.estado !== "pagada" && f.estado !== "anulada" && f.vencimiento < hoy;
-                  const deuda = deudaUnidad.get(f.unidad_id)?.deuda ?? 0;
-                  return (
-                    <tr key={f.id} className="align-top">
-                      <td className="py-3 pr-4 font-medium text-slate-900">{f.codigo}</td>
-                      <td className="py-3 pr-4">
-                        {f.propietario ?? <span className="text-slate-400">Sin asignar</span>}
-                        {f.pagos.length > 0 && (
-                          <ul className="mt-1 space-y-0.5 text-xs text-slate-500">
-                            {f.pagos.map((p) => (
-                              <li key={p.id} className="flex items-center gap-2">
-                                {fechaCorta(p.fecha)} · {soles(Number(p.monto))} · <span className="capitalize">{p.medio}</span>
-                                {p.operacion && ` · Op. ${p.operacion}`}
-                                {staff && (
-                                  <form action={eliminarPago}>
-                                    <input type="hidden" name="id" value={p.id} />
-                                    <button className="text-slate-400 hover:text-red-600" title="Eliminar pago">✕</button>
-                                  </form>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        {staff && f.estado !== "pagada" && f.estado !== "anulada" && (
-                          <details className="mt-2">
-                            <summary className="cursor-pointer text-xs font-medium text-slate-700 hover:underline">
-                              + Registrar pago
-                            </summary>
-                            <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                              <FormAccion action={registrarPago} boton="Guardar pago" className="grid gap-2 sm:grid-cols-2">
-                                <input type="hidden" name="cuota_id" value={f.id} />
-                                <Campo name="monto" label="Monto S/" inputMode="decimal" defaultValue={f.saldo.toFixed(2)} required />
-                                <Campo name="fecha" label="Fecha" type="date" defaultValue={hoy} />
-                                <Selector name="medio" label="Medio" opciones={MEDIOS} />
-                                <Campo name="operacion" label="Nº de operación" />
-                              </FormAccion>
-                              <form action={anularCuota} className="mt-2">
-                                <input type="hidden" name="id" value={f.id} />
-                                <button className="text-xs text-slate-400 hover:text-red-600">Anular esta cuota</button>
-                              </form>
-                            </div>
-                          </details>
-                        )}
-                      </td>
-                      <td className="py-3 pr-4 text-right tabular-nums">{soles(Number(f.monto))}</td>
-                      <td className="py-3 pr-4 text-right tabular-nums">{soles(f.pagado)}</td>
-                      <td className="py-3 pr-4 text-right tabular-nums">{soles(f.estado === "anulada" ? 0 : f.saldo)}</td>
-                      <td className="py-3 pr-4">
-                        <EstadoCuota estado={f.estado} vencida={vencida} />
-                      </td>
-                      <td className={`py-3 pr-4 text-right tabular-nums ${deuda > 0 ? "font-medium text-red-600" : "text-slate-400"}`}>
-                        {soles(deuda)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              Cada cuota se detalla por partida del presupuesto {anio}, en la misma proporción que la cuota tiene sobre el total
+              mensual. Abre un vecino para ver su detalle.
+            </p>
+            {vecinos.map((v) => (
+              <details key={v.id} className="group rounded-xl border border-slate-200 bg-white open:border-petroleo-700">
+                <summary className="flex min-h-14 cursor-pointer list-none flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+                  <span className="text-slate-400 transition group-open:rotate-90" aria-hidden="true">›</span>
+                  <span className="font-display text-base font-bold text-slate-900">{v.codigo}</span>
+                  <span className="min-w-0 flex-1 text-sm text-slate-600">{v.propietario ?? "Sin propietario"}</span>
+                  <EstadoCuota estado={v.estado} vencida={v.vencida} />
+                  <span className="text-xs text-slate-500 tabular-nums">{v.participacion.toFixed(2)} %</span>
+                  <span className="font-semibold tabular-nums text-slate-900">{soles(v.monto)}</span>
+                </summary>
+                <div className="border-t border-slate-100 px-4 pb-4 pt-2">
+                  <table className="w-full text-left text-sm">
+                    <caption className="sr-only">Detalle por partida de la unidad {v.codigo}</caption>
+                    <thead className="text-xs uppercase text-slate-500">
+                      <tr>
+                        <th className="py-2 pr-4">Partida</th>
+                        <th className="py-2 pr-4 text-right">Presupuesto del edificio</th>
+                        <th className="py-2 text-right">Le corresponde</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {v.lineas.map((l) => (
+                        <tr key={l.id}>
+                          <td className="py-1.5 pr-4 text-slate-900">{l.nombre}</td>
+                          <td className="py-1.5 pr-4 text-right tabular-nums text-slate-500">{soles(l.monto)}</td>
+                          <td className="py-1.5 text-right tabular-nums">{soles(l.importe)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="border-t-2 border-slate-200 font-semibold">
+                      <tr>
+                        <td className="py-2 pr-4">Total de la cuota</td>
+                        <td className="py-2 pr-4 text-right tabular-nums text-slate-500">{soles(totalMensual)}</td>
+                        <td className="py-2 text-right tabular-nums">{soles(v.monto)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </details>
+            ))}
+            <p className="pt-2 text-right text-sm font-semibold text-slate-900">
+              Total emitido: {soles(totalEmitido)} · {vecinos.length} vecinos
+            </p>
           </div>
         )}
       </Tarjeta>
