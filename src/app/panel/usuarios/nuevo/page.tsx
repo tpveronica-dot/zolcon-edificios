@@ -27,7 +27,7 @@ async function Contenido() {
         <Link href="/panel/usuarios" className="text-sm text-slate-500 hover:underline">← Usuarios</Link>
         <h1 className="mt-1 text-3xl font-extrabold text-slate-900">Nuevo usuario</h1>
         <p className="text-sm text-slate-500">
-          Al guardar se genera un enlace de acceso para enviarle. Si la persona ya tiene cuenta en Zolcon, obtiene acceso de inmediato.
+          Al guardar se genera un enlace de acceso para enviarle. Si la persona ya tiene cuenta en Inmobiliaria app, obtiene acceso de inmediato.
         </p>
       </div>
       <Tarjeta>

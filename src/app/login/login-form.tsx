@@ -22,7 +22,7 @@ export function LoginForm() {
         {esLogin
           ? "Ingresa a tu cuenta"
           : invitado
-            ? "Te invitaron a Zolcon Edificios. Crea tu contraseña con este correo."
+            ? "Te invitaron a Inmobiliaria app. Crea tu contraseña con este correo."
             : "Crea la cuenta de tu empresa administradora"}
       </p>
 

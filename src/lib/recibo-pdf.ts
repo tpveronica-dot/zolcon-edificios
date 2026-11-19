@@ -62,8 +62,8 @@ const limpio = (t: string) => t.replace(/\s+/g, " ").replace(LATIN1, "?");
 export async function generarReciboPdf(datos: DatosRecibo, hoy: string): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Estado de cuota ${nombreMes(datos.mes)} - ${datos.edificio.nombre}`);
-  pdf.setAuthor(datos.empresa ?? "Zolcon Edificios");
-  pdf.setCreator("Zolcon Edificios");
+  pdf.setAuthor(datos.empresa ?? "Inmobiliaria app");
+  pdf.setCreator("Inmobiliaria app");
   const normal = await pdf.embedFont(StandardFonts.Helvetica);
   const negrita = await pdf.embedFont(StandardFonts.HelveticaBold);
 
@@ -205,6 +205,6 @@ function dibujarVecino(
     normal,
     PIZARRA
   );
-  texto(page, "Generado con Zolcon Edificios", M, 40, 8, negrita, PETROLEO);
+  texto(page, "Generado con Inmobiliaria app", M, 40, 8, negrita, PETROLEO);
   derecha(page, `${datos.edificio.nombre} · Unidad ${v.codigo}`, W - M, 40, 8, normal, PIZARRA);
 }

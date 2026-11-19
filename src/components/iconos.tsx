@@ -31,7 +31,7 @@ export function Logo({ claro = false }: { claro?: boolean }) {
         <IconoEdificio className="h-5 w-5" />
       </span>
       <span className={`font-display text-lg font-extrabold ${claro ? "text-white" : "text-slate-900"}`}>
-        Zolcon<span className={`font-semibold ${claro ? "text-petroleo-100" : "text-slate-500"}`}> Edificios</span>
+        Inmobiliaria<span className={`font-semibold ${claro ? "text-petroleo-100" : "text-slate-500"}`}> app</span>
       </span>
     </span>
   );

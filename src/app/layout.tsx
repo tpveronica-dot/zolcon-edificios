@@ -3,7 +3,7 @@ import "./globals.css";
 import { AvisoAmbiente } from "@/components/aviso-ambiente";
 
 export const metadata: Metadata = {
-  title: "Zolcon Edificios",
+  title: "Inmobiliaria app",
   description: "Administración de edificios: presupuesto, cuotas y cobranza",
 };
 
