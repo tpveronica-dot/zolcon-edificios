@@ -10,6 +10,7 @@ import { EstadoCuota } from "@/components/estado-cuota";
 import { Distribucion } from "./distribucion";
 import { NOMBRE_METODO, type Metodo } from "@/lib/distribucion";
 import { generarCuotas } from "../../../actions";
+import { repartirEnPartidas } from "@/lib/repartir";
 
 export default function CuotasPage({ params, searchParams }: PageProps<"/panel/edificios/[id]/cuotas">) {
   return (
@@ -23,21 +24,6 @@ function mover(ym: string, delta: number) {
   const [a, m] = ym.split("-").map(Number);
   const d = new Date(Date.UTC(a, m - 1 + delta, 1));
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-const r2 = (n: number) => Math.round(n * 100) / 100;
-
-// Reparte la cuota de una unidad entre las partidas, en proporción a cada partida;
-// los céntimos de redondeo se ajustan en la partida mayor para que sume exacto.
-function repartirEnPartidas(cuota: number, partidas: { id: string; nombre: string; monto: number }[], total: number) {
-  if (total <= 0) return [];
-  const lineas = partidas.map((p) => ({ ...p, importe: r2((p.monto * cuota) / total) }));
-  const dif = r2(cuota - lineas.reduce((s, l) => s + l.importe, 0));
-  if (dif !== 0 && lineas.length) {
-    const mayor = lineas.reduce((a, b) => (b.importe > a.importe ? b : a));
-    mayor.importe = r2(mayor.importe + dif);
-  }
-  return lineas;
 }
 
 async function Contenido({
@@ -158,10 +144,18 @@ async function Contenido({
           <p className="text-sm text-slate-500">No hay partidas en el presupuesto {anio} para detallar la cuota.</p>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-slate-600">
-              Cada cuota se detalla por partida del presupuesto {anio}, en la misma proporción que la cuota tiene sobre el total
-              mensual. Abre un vecino para ver su detalle.
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="max-w-2xl text-sm text-slate-600">
+                Cada cuota se detalla por partida del presupuesto {anio}, en la misma proporción que la cuota tiene sobre el total
+                mensual. Abre un vecino para ver su detalle o descarga su estado de cuota en PDF.
+              </p>
+              <a
+                href={`/panel/edificios/${id}/cuotas/recibos?mes=${mes}`}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-petroleo-700 hover:bg-petroleo-50"
+              >
+                <IconoDescarga /> Descargar todos (PDF)
+              </a>
+            </div>
             {vecinos.map((v) => (
               <details key={v.id} className="group rounded-xl border border-slate-200 bg-white open:border-petroleo-700">
                 <summary className="flex min-h-14 cursor-pointer list-none flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
@@ -173,6 +167,14 @@ async function Contenido({
                   <span className="font-semibold tabular-nums text-slate-900">{soles(v.monto)}</span>
                 </summary>
                 <div className="border-t border-slate-100 px-4 pb-4 pt-2">
+                  <div className="flex justify-end pt-1">
+                    <a
+                      href={`/panel/edificios/${id}/cuotas/recibo/${v.id}?mes=${mes}`}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-petroleo-700 px-4 text-sm font-semibold text-white hover:bg-petroleo-800"
+                    >
+                      <IconoDescarga /> Descargar PDF de {v.codigo}
+                    </a>
+                  </div>
                   <table className="w-full text-left text-sm">
                     <caption className="sr-only">Detalle por partida de la unidad {v.codigo}</caption>
                     <thead className="text-xs uppercase text-slate-500">
@@ -209,5 +211,14 @@ async function Contenido({
         )}
       </Tarjeta>
     </div>
+  );
+}
+
+function IconoDescarga() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 4v11M7 10l5 5 5-5" />
+      <path d="M4 19h16" />
+    </svg>
   );
 }
