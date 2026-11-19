@@ -21,7 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return new NextResponse(Buffer.from(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${nombre}"`,
+      "Content-Disposition": `${request.nextUrl.searchParams.has("ver") ? "inline" : "attachment"}; filename="${nombre}"`,
       "Cache-Control": "private, no-store",
     },
   });

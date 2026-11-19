@@ -1,10 +1,24 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AvisoAmbiente } from "@/components/aviso-ambiente";
 
 export const metadata: Metadata = {
   title: "Inmobiliaria app",
   description: "Administración de edificios: presupuesto, cuotas y cobranza",
+  applicationName: "Inmobiliaria app",
+  appleWebApp: { capable: true, title: "Inmobiliaria", statusBarStyle: "black-translucent" },
+  icons: {
+    icon: [{ url: "/icons/icon-64.png", sizes: "64x64", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a3846",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

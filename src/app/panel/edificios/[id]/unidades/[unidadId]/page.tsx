@@ -2,9 +2,10 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getPerfil, esStaff } from "@/lib/auth";
+import { getPerfil, esStaff, esAdminEmpresa } from "@/lib/auth";
 import { FormAccion, Campo, Selector, Tarjeta } from "@/components/form-accion";
-import { actualizarPropietario, actualizarUnidad } from "@/app/panel/actions";
+import { actualizarPropietario, actualizarUnidad, darAccesoPortal } from "@/app/panel/actions";
+import { CopiarEnlace } from "@/app/panel/usuarios/copiar-enlace";
 import { CambiarPropietario } from "./cambiar-propietario";
 import { OPCIONES_JUNTA } from "@/lib/junta";
 
@@ -23,7 +24,7 @@ const TIPOS: [string, string][] = [
   ["local", "Local"],
 ];
 
-type Persona = { id: string; nombres: string; documento: string | null; email: string | null; telefono: string | null };
+type Persona = { id: string; nombres: string; documento: string | null; email: string | null; telefono: string | null; usuario_id: string | null };
 
 async function Contenido({ params }: { params: Promise<{ id: string; unidadId: string }> }) {
   const { id, unidadId } = await params;
@@ -33,7 +34,7 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
 
   const { data: unidad } = await supabase
     .from("unidades")
-    .select("id, codigo, tipo, area_m2, propietario_id, edificios(nombre), personas(id, nombres, documento, email, telefono)")
+    .select("id, codigo, tipo, area_m2, propietario_id, edificios(nombre), personas(id, nombres, documento, email, telefono, usuario_id)")
     .eq("id", unidadId)
     .eq("edificio_id", id)
     .single();
@@ -49,6 +50,10 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
       : Promise.resolve({ data: [] as { codigo: string; edificios: unknown }[] }),
   ]);
   const nUnidades = otrasUnidades?.length ?? 0;
+  const { data: invitacion } =
+    propietario?.email && !propietario.usuario_id
+      ? await supabase.from("invitaciones").select("id").ilike("email", propietario.email.replace(/[%_\\]/g, "\\$&")).is("aceptada_en", null).maybeSingle()
+      : { data: null };
   const { data: junta } = propietario
     ? await supabase.from("junta_directiva").select("cargo").eq("edificio_id", id).eq("persona_id", propietario.id).maybeSingle()
     : { data: null };
@@ -119,6 +124,30 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
           </p>
         </Tarjeta>
       </div>
+
+      {propietario && (
+        <Tarjeta titulo="Acceso al portal del propietario">
+          {propietario.usuario_id ? (
+            <p className="text-sm text-emerald-700">✓ {propietario.nombres} ya entra a la app y ve su cuota, sus pagos y sus recibos.</p>
+          ) : invitacion && propietario.email ? (
+            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+              <span>Invitación lista para <strong>{propietario.email}</strong>. Envíale este enlace por WhatsApp o correo:</span>
+              <CopiarEnlace email={propietario.email} />
+            </div>
+          ) : !propietario.email ? (
+            <p className="text-sm text-slate-600">Registra su correo en “Datos del propietario” para poder darle acceso a la app.</p>
+          ) : esAdminEmpresa(perfil) ? (
+            <FormAccion action={darAccesoPortal} boton="Dar acceso a la app" className="space-y-3">
+              <input type="hidden" name="persona_id" value={propietario.id} />
+              <p className="text-sm text-slate-600">
+                Podrá ver su cuota, descargar recibos y reportar pagos con foto del voucher desde su celular. Entrará con {propietario.email}.
+              </p>
+            </FormAccion>
+          ) : (
+            <p className="text-sm text-slate-600">Pide a la administradora de la empresa que le dé acceso.</p>
+          )}
+        </Tarjeta>
+      )}
 
       <Tarjeta titulo="Cambiar propietario">
         <p className="mb-4 text-sm text-slate-600">

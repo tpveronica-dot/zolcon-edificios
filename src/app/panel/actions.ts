@@ -616,3 +616,52 @@ export async function guardarDistribucion(_: Estado, fd: FormData): Promise<Esta
     `/panel/edificios/${edificio_id}/cuotas?mes=${txt(fd, "mes")}&ok=${encodeURIComponent("Forma de reparto guardada.")}#distribucion`
   );
 }
+
+// ---------- Pagos reportados por propietarios ----------
+export async function validarPago(fd: FormData) {
+  await staff();
+  const supabase = await createClient();
+  await supabase.from("pagos").update({ validado: true }).eq("id", txt(fd, "id")).eq("validado", false);
+  refresh();
+}
+
+export async function rechazarPago(fd: FormData) {
+  await staff();
+  const supabase = await createClient();
+  const { data } = await supabase.from("pagos").select("voucher_url").eq("id", txt(fd, "id")).eq("validado", false).maybeSingle();
+  await supabase.from("pagos").delete().eq("id", txt(fd, "id")).eq("validado", false);
+  if (data?.voucher_url) await supabase.storage.from("vouchers").remove([data.voucher_url]);
+  refresh();
+}
+
+// ---------- Acceso del propietario al portal ----------
+export async function darAccesoPortal(_: Estado, fd: FormData): Promise<Estado> {
+  const perfil = await staff();
+  if (!esAdminEmpresa(perfil)) return { error: "Solo la administradora de la empresa puede dar accesos." };
+  const supabase = await createClient();
+  const { data: persona } = await supabase
+    .from("personas")
+    .select("id, nombres, email, usuario_id")
+    .eq("id", txt(fd, "persona_id"))
+    .single();
+  if (!persona?.email) return { error: "Primero registra el correo del propietario y guarda." };
+  if (persona.usuario_id) return { ok: "Ya tiene acceso." };
+
+  const { error } = await supabase.rpc("invitar_usuario", {
+    p_email: persona.email,
+    p_nombre: persona.nombres,
+    p_rol: "propietario",
+    p_edificios: [],
+  });
+  if (error?.message.includes("ya es usuario de tu empresa")) {
+    // Ya tenía cuenta en la empresa: solo se vincula su ficha
+    const { data: usuario } = await supabase.from("perfiles").select("id").ilike("email", persona.email.replace(/[%_\\]/g, "\\$&")).maybeSingle();
+    if (!usuario) return { error: error.message };
+    const { error: e2 } = await supabase.from("personas").update({ usuario_id: usuario.id }).eq("id", persona.id);
+    if (e2) return { error: e2.message };
+  } else if (error) {
+    return { error: error.message };
+  }
+  refresh();
+  return { ok: "Listo. Envíale el enlace de acceso." };
+}

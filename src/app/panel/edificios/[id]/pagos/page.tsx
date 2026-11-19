@@ -7,7 +7,7 @@ import { FormAccion, Campo, Selector, Tarjeta } from "@/components/form-accion";
 import { soles, nombreMes, hoyLima, fechaCorta } from "@/lib/formato";
 import { Encabezado, Indicador } from "../encabezado";
 import { EstadoCuota } from "@/components/estado-cuota";
-import { anularCuota, eliminarPago, registrarPago } from "../../../actions";
+import { anularCuota, eliminarPago, registrarPago, validarPago, rechazarPago } from "../../../actions";
 
 export default function PagosPage({ params, searchParams }: PageProps<"/panel/edificios/[id]/pagos">) {
   return (
@@ -58,6 +58,17 @@ async function Contenido({
       .eq("periodo", `${mes}-01`),
     supabase.from("estado_cuenta").select("unidad_id, deuda, cuotas_vencidas").eq("edificio_id", id),
   ]);
+  const { data: porValidar } = await supabase
+    .from("pagos")
+    .select("id, monto, fecha, medio, operacion, voucher_url, creado_en, cuotas!inner(edificio_id, periodo, monto, unidades(codigo, personas(nombres)))")
+    .eq("validado", false)
+    .eq("cuotas.edificio_id", id)
+    .order("creado_en");
+  const rutas = (porValidar ?? []).map((p) => p.voucher_url).filter((v): v is string => !!v);
+  const { data: firmadas } = rutas.length
+    ? await supabase.storage.from("vouchers").createSignedUrls(rutas, 60 * 30)
+    : { data: [] as { path: string | null; signedUrl: string }[] };
+  const urlVoucher = new Map((firmadas ?? []).map((f) => [f.path, f.signedUrl]));
   const mensaje = typeof sp.ok === "string" ? sp.ok : null;
   if (!edificio) notFound();
 
@@ -86,6 +97,49 @@ async function Contenido({
       <Encabezado id={id} edificio={edificio} activa="pagos" gestionar={esAdminEmpresa(perfil)} />
 
       {mensaje && <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">✓ {mensaje}</p>}
+
+      {staff && (porValidar?.length ?? 0) > 0 && (
+        <section className="rounded-2xl border-2 border-amber-400 bg-amber-100/40 p-6">
+          <h2 className="text-lg font-bold text-slate-900">Pagos reportados por propietarios · por validar ({porValidar!.length})</h2>
+          <p className="mb-4 text-sm text-slate-600">Revisa el voucher contra tu cuenta bancaria. Al validar, el pago cuenta para la cuota.</p>
+          <ul className="space-y-3">
+            {porValidar!.map((p) => {
+              const c = p.cuotas as unknown as { periodo: string; unidades: { codigo: string; personas: { nombres: string } | null } };
+              const url = p.voucher_url ? urlVoucher.get(p.voucher_url) : null;
+              return (
+                <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm">
+                    <p className="font-semibold text-slate-900">
+                      Unidad {c.unidades.codigo} · {c.unidades.personas?.nombres ?? "—"}
+                    </p>
+                    <p className="text-slate-600">
+                      {soles(Number(p.monto))} · <span className="capitalize">{p.medio}</span> · {fechaCorta(p.fecha)}
+                      {p.operacion && ` · Op. ${p.operacion}`} · cuota de <span className="capitalize">{nombreMes(String(c.periodo).slice(0, 7))}</span>
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {url ? (
+                      <a href={url} target="_blank" rel="noopener" className="inline-flex min-h-10 items-center rounded-xl border border-slate-200 px-3 text-sm font-semibold text-petroleo-700 hover:bg-petroleo-50">
+                        Ver voucher
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-400">Sin voucher</span>
+                    )}
+                    <form action={validarPago}>
+                      <input type="hidden" name="id" value={p.id} />
+                      <button className="inline-flex min-h-10 items-center rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white hover:bg-emerald-800">Validar</button>
+                    </form>
+                    <form action={rechazarPago}>
+                      <input type="hidden" name="id" value={p.id} />
+                      <button className="inline-flex min-h-10 items-center rounded-xl px-3 text-sm text-slate-500 hover:text-red-700">Rechazar</button>
+                    </form>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <Link href={`?mes=${mover(mes, -1)}`} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 hover:bg-slate-100">←</Link>

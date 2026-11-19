@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getPerfil, esStaff, esAdminEmpresa } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { FormAccion, Campo, Tarjeta } from "@/components/form-accion";
@@ -39,13 +40,8 @@ async function Contenido({ searchParams }: { searchParams: Promise<Record<string
     );
   }
 
-  if (!esStaff(perfil)) {
-    return (
-      <Tarjeta titulo={perfil.rol === "junta" ? "Vista de la junta directiva" : "Portal del propietario"}>
-        <p className="text-sm text-slate-600">Muy pronto podrás ver aquí la información de tu edificio.</p>
-      </Tarjeta>
-    );
-  }
+  // Propietarios y junta: portal móvil con su unidad
+  if (!esStaff(perfil)) redirect("/portal");
 
   const supabase = await createClient();
   const [{ data: edificios }, { data: cuentas }] = await Promise.all([
