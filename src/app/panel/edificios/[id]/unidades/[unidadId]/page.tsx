@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getPerfil, esStaff, esAdminEmpresa } from "@/lib/auth";
+import { getPerfil, esStaff, esAdminEmpresa, NOMBRE_ROL } from "@/lib/auth";
 import { FormAccion, Campo, Selector, Tarjeta } from "@/components/form-accion";
 import { actualizarPropietario, actualizarUnidad, darAccesoPortal } from "@/app/panel/actions";
 import { CopiarEnlace } from "@/app/panel/usuarios/copiar-enlace";
@@ -52,7 +52,7 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
   const nUnidades = otrasUnidades?.length ?? 0;
   const { data: invitacion } =
     propietario?.email && !propietario.usuario_id
-      ? await supabase.from("invitaciones").select("id").ilike("email", propietario.email.replace(/[%_\\]/g, "\\$&")).is("aceptada_en", null).maybeSingle()
+      ? await supabase.from("invitaciones").select("id, rol").ilike("email", propietario.email.replace(/[%_\\]/g, "\\$&")).is("aceptada_en", null).maybeSingle()
       : { data: null };
   const { data: junta } = propietario
     ? await supabase.from("junta_directiva").select("cargo").eq("edificio_id", id).eq("persona_id", propietario.id).maybeSingle()
@@ -129,6 +129,11 @@ async function Contenido({ params }: { params: Promise<{ id: string; unidadId: s
         <Tarjeta titulo="Acceso al portal del propietario">
           {propietario.usuario_id ? (
             <p className="text-sm text-emerald-700">✓ {propietario.nombres} ya entra a la app y ve su cuota, sus pagos y sus recibos.</p>
+          ) : invitacion && invitacion.rol !== "propietario" ? (
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+              {propietario.email} tiene una invitación pendiente como <strong>{NOMBRE_ROL[invitacion.rol as keyof typeof NOMBRE_ROL] ?? invitacion.rol}</strong>.
+              Para darle acceso como propietario, usa otro correo o elimina esa invitación en Usuarios.
+            </p>
           ) : invitacion && propietario.email ? (
             <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
               <span>Invitación lista para <strong>{propietario.email}</strong>. Envíale este enlace por WhatsApp o correo:</span>
